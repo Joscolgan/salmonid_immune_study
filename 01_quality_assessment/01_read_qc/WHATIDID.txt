@@ -1,0 +1,15 @@
+mkdir input
+cd input/
+
+## Create symbolic link with raw input files:
+ln -s ../../../data/linked_data/*.gz .
+cd ../
+
+## Create results directory
+mkdir results
+## Count the number of raw reads
+for name in input/*.gz
+do
+new_name="$(echo "$name" | cut -d '/' -f 1 | cut -d '.' -f 1 )"
+fastqc -t 30 "$name" -o results/"$new_name"
+done
