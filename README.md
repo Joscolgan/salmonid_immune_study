@@ -1,4 +1,4 @@
-# salmonid_immune_study
+# salmonid immune study
 Comparative immunogenomics of salmonids  
 
 1. Quality assessment of sequence data  
