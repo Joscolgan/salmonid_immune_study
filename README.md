@@ -7,7 +7,7 @@ Comparative immunogenomics of salmonid. Colgan, T.J., Moran P., Reed, TE _Fronti
 This work is distributed under the GPLv3 license. Reuse of code derived from this repository is permitted under two conditions:  
 
 ## Proper attribution (i.e., citation of the associated publication; see CITATION.cff and above).  
-Publication of reused scripts on an open-access platform, such as Github.
+Publication of reused scripts on an open-access platform, such as GitHub.
 This repository contains the following subdirectories:
 
 1. Quality assessment of sequence data  
