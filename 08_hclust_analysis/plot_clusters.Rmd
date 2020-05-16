@@ -1,0 +1,107 @@
+
+
+Load libraries:
+```{r, message = FALSE}
+require(ggplot2)
+require(reshape2)
+```
+
+Read in data:
+
+```{r, message = FALSE}
+data <- read.table(file = "results_homeologs/Processed_Data/homeolog_gene_level_counts.txt_processed.tsv",
+                   header = TRUE)
+
+## Update column names:
+sample_info <- read.table(file = "data/str_samples_list.txt",
+                          header = FALSE,
+                          col.names = c("accession_id",
+                                        "tissue"))
+
+colnames(data) <- c("locus",
+                    as.character(unlist(sample_info$tissue)))
+```
+
+Read in cluster information:
+
+```{r, message = FALSE}
+clusters <- read.table(file = "results_homeologs/Clusters_Objects_with_zeros.tsv",
+                       header = TRUE)
+
+cluster_1 <- subset(data,
+              locus %in% clusters$C0_.30_genes.)
+cluster_1$cluster <- "A"
+
+cluster_2 <- subset(data,
+              locus %in% clusters$C1_.12_genes.)
+cluster_2$cluster <- "B"
+
+cluster_3 <- subset(data,
+              locus %in% clusters$C2_.16_genes.)
+cluster_3$cluster <- "C"
+
+cluster_4 <- subset(data,
+              locus %in% clusters$C3_.26_genes.)
+cluster_4$cluster <- "D"
+combined_df <- rbind(cluster_1,
+                     cluster_2,
+                     cluster_3,
+                     cluster_4)
+require(reshape2)
+combined_melt <- melt(combined_df)
+```
+
+Generate plot:
+
+```{r, message = FALSE}
+require(ggplot2)
+## Generate plot:
+cluster_plot <- ggplot(data = combined_melt,
+                       aes(x = variable,
+                           y = value,
+                           group = locus,
+                           colour = cluster)) +
+        xlab(label = "Tissue") +
+        ylab(label = "Normalised Gene Expression (TPM)") +
+        geom_line(alpha = 0.8) +
+        geom_point(alpha = 0.3,
+                   colour = "black") +
+        scale_fill_brewer(palette = "Blues") +
+        theme_bw() +
+        theme(axis.title = element_text(face = "bold",
+                                        size = 12),
+              axis.text.x = element_text(face = "plain",
+                                       size = 8,
+                                       angle = 45,
+                                       hjust = 1),
+              axis.text.y = element_text(face = "plain",
+                                         size = 10),
+              legend.position = "none") +
+        facet_wrap(~cluster, ncol = 2)
+```
+
+Write to file:
+
+```{r, message = FALSE}
+## Output table:
+write.table(x = combined_df,
+            file = "results_homeologs/homeolog_gene_expression_plus_cluster_id.txt",
+            col.names = TRUE,
+            row.names = FALSE,
+            quote = FALSE,
+            sep = "\t")
+
+## Output image:
+ggsave(file = "results_homeologs/cluster_line_plots.png",
+       height = 6,
+       width = 12)
+
+## Save as an R object:
+save.image(file = "results_homeologs/cluster_analysis.RData")
+```
+
+Run lintr:
+
+```{r, message = FALSE}
+lintr::lint(file = "plot_clusters.Rmd")
+```
