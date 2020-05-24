@@ -1,0 +1,74 @@
+
+
+
+```{r, message = FALSE}
+require(eulerr)
+require(ggplot2)
+```
+
+Read in input:
+
+```{r, message = FALSE}
+one_to_one_terms <- read.table(file = "results/strutta_drerio_immmune/input_for_eulerr/sig_BP_terms_1_to_1.txt",
+                               header = FALSE,
+                               col.names = c("go_term",
+                                             "go_description",
+                                             "annotated",
+                                             "significant",
+                                             "expected",
+                                             "weight_fisher",
+                                             "weight_fisher_adjusted"))
+one_to_one_term_ids <- as.character(unlist(one_to_one_terms$go_term))
+
+one_to_two_terms <- read.table(file = "results/strutta_drerio_immmune/input_for_eulerr/sig_BP_terms_1_to_2.txt",
+                               header = FALSE,
+                               col.names = c("go_term",
+                                             "go_description",
+                                             "annotated",
+                                             "significant",
+                                             "expected",
+                                             "weight_fisher",
+                                             "weight_fisher_adjusted"))
+one_to_two_terms_ids <- as.character(unlist(one_to_two_terms$go_term))
+
+one_to_more_than_two_terms <- read.table(file = "results/strutta_drerio_immmune/input_for_eulerr/sig_BP_terms_1_to_more_than_2.txt",
+                               header = FALSE,
+                               col.names = c("go_term",
+                                             "go_description",
+                                             "annotated",
+                                             "significant",
+                                             "expected",
+                                             "weight_fisher",
+                                             "weight_fisher_adjusted"))
+one_to_more_than_two_terms_ids <- as.character(unlist(one_to_more_than_two_terms$go_term))
+```
+
+Create a list of comparisons for plot:
+
+```{r, message = FALSE}
+venndiagram <- euler(combinations = list("1:1 orthologs" = one_to_one_term_ids,
+                                        "1:2 orthologs" = one_to_two_terms_ids,
+                                        "1:>2 orthologs" = one_to_more_than_two_terms_ids))
+
+```
+
+Plot Venn diagram:
+
+```{r, message = FALSE}
+plot(venndiagram,
+     quantities = TRUE,
+     edges = TRUE)
+
+## Save image to file:
+dir.create(path = "./euler_plots")
+ggsave(filename = "./euler_plots/comparison_terms.pdf",
+       dpi = 600,
+       width = 5,
+       height = 5)
+```
+
+Run lintr:
+
+```{r, message = FALSE}
+lintr::lint(file = "plot_go_term_euler.Rmd")
+``
