@@ -1,0 +1,119 @@
+--- 
+title: "Salmo smoltification study"
+output: plot_go_term_barchart.html
+author: Joe Colgan (joscolgan)
+---
+
+## Introduction:  
+This script is for visualisation of the output of gene ontology (GO) analyses using the R package TopGo.
+This script creates a barchart of the number of significant genes annotated to a particular GO term, with an associated p-value. This script takes an input of .csv files containing an output table of GO analyses.
+
+```{r, message = FALSE}
+# Load libraries; install from scratch if needed
+libraries <- c("ggplot2",
+               "lattice",
+               "ggpubr")
+for (lib in libraries) {
+    if (require(package = lib, character.only = TRUE)) {
+        print("Successful")
+    } else {
+        print("Installing")
+        source("https://bioconductor.org/biocLite.R")
+        library(lib, character.only = TRUE)
+    }
+}
+## Create output directory:
+dir.create("results")
+```
+
+## Step One: Load input files
+
+```{r, message = FALSE}
+## Read in input:
+results <- "./results/strutta_drerio_immmune/input_for_barchart/"
+## Read in biological process terms:
+sig_bp_terms <- read.table(file = paste(results,
+                                    "sig_BP_terms_1_to_more_than_2_input_for_plot.txt",
+                                    sep = ""),
+                                    header = FALSE,
+                           col.names =  c("go_term",
+                                        "go_description",
+                                        "go_number",
+                                        "adjusted_p"))
+                       
+## Subset significant values:
+sig_bp_terms <- subset(sig_BP_terms,
+                   adjusted_p < 0.05)
+sig_bp_terms$category <- "1:1"
+
+sig_bp_terms$amended_terms <- paste(sig_bp_terms$go_description,
+                                   "_(",
+                                   sig_bp_terms$go_number,
+                                   ")",
+                                   sep = "")
+sig_bp_terms$amended_terms <- gsub(pattern = "_",
+                                  replacement = " ",
+                                  sig_bp_terms$amended_terms)
+## Subset genes with adjust p value less than 0.01
+sig_bp_terms <- subset(x = sig_bp_terms,
+                      adjusted_p < 0.01)
+## Log transform p value:
+sig_bp_terms$log_10 <- -log10(x = sig_bp_terms$adjusted_p)
+```
+
+Generate plot:
+
+```{r, message = FALSE}
+## Function for plotting barchart:
+plot <- ggbarplot(sig_BP_terms,
+                          x = "amended_terms",
+                          y = "log_10",
+                          position = position_dodge(0.1),
+                          fill = "category",
+                          color = NULL,
+                          palette = "jco",
+                          sort.val = "asc",
+                          sort.by.groups = TRUE,
+                          ylab = "-log10(p)",
+                          xlab = "Gene Ontology term",
+                          legend.title = "Gene Ontology",
+                          lab.col = "black",
+                          lab.size = 4,
+                          lab.vjust = 0.5,
+                          lab.hjust = 1,
+                          legend = "top",
+                          rotate = TRUE,
+                          ggtheme = theme_minimal())
+
+## Make font bigger and bold:
+plot <- plot +
+                scale_y_continuous(expand = c(0, 0)) +
+                theme(axis.text = element_text(size = 10),
+                      axis.title.x = element_text(size = 12,
+                                                  face = "bold"),
+                      axis.title.y = element_text(size = 12,
+                                                  face = "bold"),
+                      axis.text.y = element_text(size = 10,
+                                                 face = "bold"),
+                      axis.text.x = element_text(size = 10),
+                      legend.position = "none") +
+                expand_limits(y = 10) +
+                geom_hline(yintercept = 1.301,
+                           linetype = "dashed",
+                           colour = "black")
+## Update colours for plotting
+plot <- plot +
+        scale_fill_manual(values = c("light blue"))
+
+## Save picture:
+ggsave(file = "results/1_more_than_2_go_terms_barchart.pdf",
+       dpi = 600,
+       height = 20,
+       width = 18)
+```
+
+Run lintr:
+
+```{r, message =  FALSE}
+lintr::lint(file = "plot_go_term_barchart.Rmd")
+```
