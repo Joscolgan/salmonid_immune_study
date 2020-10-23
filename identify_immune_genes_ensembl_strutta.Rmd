@@ -26,25 +26,24 @@ salmo_ncbi <- getBM(attributes = c('ensembl_gene_id',
                     mart = ensembl)
 ```
 
-
 Subset salmon orthologs:
 
 ```{r, message = FALSE}
 salmo_comp <- getBM(attributes = c('ensembl_gene_id',
                                    'chromosome_name',
                                    'start_position',
-                     'end_position',
-                     'ssalar_homolog_ensembl_gene',
-                     'ssalar_homolog_chromosome',
-                     'ssalar_homolog_chrom_start',
-                     'ssalar_homolog_chrom_end',
-                     'ssalar_homolog_orthology_type',
-                     'ssalar_homolog_perc_id',
-                     'ssalar_homolog_perc_id_r1',
-                     'ssalar_homolog_goc_score',
-                     'ssalar_homolog_wga_coverage',
-                     'ssalar_homolog_orthology_confidence'),
-      mart = ensembl)
+                                   'end_position',
+                                   'ssalar_homolog_ensembl_gene',
+                                   'ssalar_homolog_chromosome',
+                                   'ssalar_homolog_chrom_start',
+                                   'ssalar_homolog_chrom_end',
+                                   'ssalar_homolog_orthology_type',
+                                   'ssalar_homolog_perc_id',
+                                   'ssalar_homolog_perc_id_r1',
+                                   'ssalar_homolog_goc_score',
+                                   'ssalar_homolog_wga_coverage',
+                                   'ssalar_homolog_orthology_confidence'),
+                    mart = ensembl)
 
 ## Subset entries where confidence is '1':
 salmo_comp_sub <- subset(salmo_comp,
@@ -351,6 +350,8 @@ ggplot(data = para_comp_within_salmo_match,
 Subset salmoninae:
 
 ```{r, message = FALSE}
+options(scipen = 666)
+
 para_comp_within_salmoninae <- subset(para_comp_within_species,
           strutta_paralog_subtype == "Salmoninae")
 para_comp_within_salmoninae$average_perc_id <- (para_comp_within_salmoninae$strutta_paralog_perc_id +
@@ -411,7 +412,7 @@ pike_comp <- getBM(attributes = c('ensembl_gene_id',
 
 ## Subset entries where confidence is '1':
 pike_comp_sub <- subset(pike_comp,
-       elucius_homolog_orthology_confidence == "1")
+                        elucius_homolog_orthology_confidence == "1")
 
 ## Many to one:
 pike_comp_sub_one2many <- subset(pike_comp_sub,
@@ -464,10 +465,8 @@ head(salmo_comp_sub)
 
 nrow(pike_comp_sub_one2many_immune_ohno)
 head(pike_comp_sub_one2many_immune_ohno)
-head(salmo_ncbi)
+head(salar_ncbi)
 
-pike_comp_sub_one2many_immune_ohno$entrezgene_id <- salar_ncbi[match(pike_comp_sub_one2many_immune_ohno$salmon_match,
-                 salar_ncbi$ensembl_gene_id), ]$entrezgene_id
 
 ## Read in information from Bertoletti:
 bertoletti_data <- read.table(file = "input/supp_table_4_bertolotti.txt",
@@ -488,10 +487,13 @@ bertoletti_data_ss4r$pike_matches <- gsub(pattern = "_Eluc",
                                           bertoletti_data_ss4r$pike_matches)
 
 ## Convert columns of interest to character variables:
-pike_comp_sub_one2many_immune_ohno$entrezgene_id <- as.character(pike_comp_sub_one2many_immune_ohno$entrezgene_id)
-
 pike_comp_sub_one2many_immune_ohno$salmon_match <- salmo_comp_sub[match(pike_comp_sub_one2many_immune_ohno$ensembl_gene_id,
                  salmo_comp_sub$ensembl_gene_id), ]$ssalar_homolog_ensembl_gene
+
+pike_comp_sub_one2many_immune_ohno$entrezgene_id <- salar_ncbi[match(pike_comp_sub_one2many_immune_ohno$salmon_match,
+                 salar_ncbi$ensembl_gene_id), ]$entrezgene_id
+
+pike_comp_sub_one2many_immune_ohno$entrezgene_id <- as.character(pike_comp_sub_one2many_immune_ohno$entrezgene_id)
 
 bertoletti_data_ss4r$gene1 <- as.character(bertoletti_data_ss4r$gene1)
 bertoletti_data_ss4r$gene2 <- as.character(bertoletti_data_ss4r$gene2)
