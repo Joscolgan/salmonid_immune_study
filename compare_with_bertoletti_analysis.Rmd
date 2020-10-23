@@ -1,0 +1,134 @@
+
+
+
+1. Load libraries:
+
+```{r, message = FALSE}
+require(ggplot2)
+require(biomaRt)
+require(dplyr)
+```
+
+2. Load data:
+
+```{r, message = FALSE}
+load(file = "results/pike_comp_sub_one2many_immune_ohno_strutta.RData")
+```
+
+3. Extract NCBI gene symbols for Atlantic salmon:
+
+```{r, message = FALSE}
+ensembl <- useMart("ensembl")
+
+ensembl <- useDataset("ssalar_gene_ensembl",
+                     mart = ensembl)
+
+salar_ncbi <- getBM(attributes = c('ensembl_gene_id',
+                                   'entrezgene_id',
+                                   'chromosome_name',
+                                   'start_position',
+                                   'end_position'),
+                    mart = ensembl)
+```
+
+4. Read in supplemental table from Bertoletti study:
+
+```{r, message = FALSE}
+## Read in information from Bertoletti:
+bertoletti_data <- read.table(file = "input/supp_table_4_bertolotti.txt",
+                              header = TRUE)
+
+bertoletti_data_ss4r <- subset(x = bertoletti_data,
+                               type == "ss4r")
+
+## Extract pike matches:
+bertoletti_data_ss4r$pike_matches <- gsub(pattern = ":.*",
+                                          replacement = "",
+                                          bertoletti_data_ss4r$clantree)
+bertoletti_data_ss4r$pike_matches <- gsub(pattern = "[(]",
+                                          replacement = "",
+                                          bertoletti_data_ss4r$pike_matches)
+bertoletti_data_ss4r$pike_matches <- gsub(pattern = "_Eluc",
+                                          replacement = "",
+                                          bertoletti_data_ss4r$pike_matches)
+
+## Convert columns of interest to character variables:
+pike_comp_sub_one2many_immune_ohno$salmon_match <- salmo_comp_sub[match(pike_comp_sub_one2many_immune_ohno$ensembl_gene_id,
+                 salmo_comp_sub$ensembl_gene_id), ]$ssalar_homolog_ensembl_gene
+
+pike_comp_sub_one2many_immune_ohno$entrezgene_id <- salar_ncbi[match(pike_comp_sub_one2many_immune_ohno$salmon_match,
+                 salar_ncbi$ensembl_gene_id), ]$entrezgene_id
+
+pike_comp_sub_one2many_immune_ohno$entrezgene_id <- as.character(pike_comp_sub_one2many_immune_ohno$entrezgene_id)
+
+bertoletti_data_ss4r$gene1 <- as.character(bertoletti_data_ss4r$gene1)
+bertoletti_data_ss4r$gene2 <- as.character(bertoletti_data_ss4r$gene2)
+
+tmp1 <- row.names(subset(bertoletti_data_ss4r,
+       gene1 %in% pike_comp_sub_one2many_immune_ohno$entrezgene_id))
+
+tmp2 <- row.names(subset(bertoletti_data_ss4r,
+       gene2 %in% pike_comp_sub_one2many_immune_ohno$entrezgene_id))
+
+combined <- as.data.frame(table(c(tmp1,
+                                  tmp2)))
+
+combined <- subset(combined,
+                   Freq == 2)
+
+nrow(subset(bertoletti_data_ss4r,
+       row.names(bertoletti_data_ss4r) %in% combined$Var1))
+
+
+ssalar_conserved_immune_ohnologs <- subset(bertoletti_data_ss4r,
+                                  row.names(bertoletti_data_ss4r) %in% combined$Var1)
+```
+
+5. Check overlap with brown trout genes:
+
+```{r, message = FALSE}
+## First identify putative orthologs for salmon in brown trout:
+salmo_comp_ssalar <- select(salmo_comp_sub,
+                             "ensembl_gene_id",
+                             "ssalar_homolog_ensembl_gene")
+
+ssalar_immune_ohnologs <- c(ssalar_conserved_immune_ohnologs$gene1,
+                            ssalar_conserved_immune_ohnologs$gene2)
+
+## Next identify salmo salar ensembl ids:
+ssalar_immune_ohnologs_df <- subset(salar_ncbi,
+       entrezgene_id %in% ssalar_immune_ohnologs)
+
+strutta_immune_ohnologs_df <- subset(salmo_comp_ssalar,
+                                     ssalar_homolog_ensembl_gene %in% ssalar_immune_ohnologs_df$ensembl_gene_id)$ensembl_gene_id
+```
+
+6. Identify singletons:
+
+```{r, message = FALSE}
+## Subset putative singletons:
+bertoletti_data_singleton <- subset(x = bertoletti_data,
+                               type == "singleton")
+
+## Many to one:
+pike_comp_sub_one2one <- subset(pike_comp_sub,
+       elucius_homolog_orthology_type == "ortholog_one2one")
+
+## Calculate average percentage similarity:     
+pike_comp_sub_one2one$average_perc_id <- (pike_comp_sub_one2one$elucius_homolog_perc_id + pike_comp_sub_one2one$elucius_homolog_perc_id_r1) / 2
+
+## Identify putative immune genes that are also single copy in northern pike:
+pike_comp_sub_one2one_immune <- subset(pike_comp_sub_one2one,
+                                       ensembl_gene_id %in% unique_gene_list &
+                                               average_perc_id >= 75)
+
+salmo_comp_df <- subset(salmo_comp,
+                        ensembl_gene_id %in% pike_comp_sub_one2one_immune$ensembl_gene_id)
+
+putative_singletons <- na.omit(subset(salar_ncbi,
+       ensembl_gene_id %in% salmo_comp_df$ssalar_homolog_ensembl_gene)$entrezgene_id)
+
+## Examine presence of single copy status in Bertoletti analysis:
+length(intersect(bertoletti_data_singleton$gene1, putative_singletons))
+```
+
