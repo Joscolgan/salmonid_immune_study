@@ -1,0 +1,42 @@
+
+
+1. Load libraries:
+
+```{r, message = FALSE}
+require(ggplot2)
+```
+
+2. Load data:
+
+```{r, message = FALSE}
+load(file = "results/putative_strutta_immune_genes.RData")
+```
+
+3. Load in single copy genes:
+
+```{r, message = FALSE}
+single_copy_genes <- scan(file = "data/all_strutta_sco_ids.txt",
+                          as.character())
+
+## Remove extension:
+single_copy_genes <- gsub(pattern = "[.]1",
+                          replacement = "",
+                          single_copy_genes)
+```
+
+4. Check for overlap:
+
+```{r, message = FALSE}
+length(intersect(single_copy_genes,
+                 unique_gene_list))
+
+single_copy_immune_genes <- intersect(single_copy_genes,
+                                      unique_gene_list)
+```
+
+5. Write to file:
+
+```{r, message = FALSE}
+write(x = single_copy_immune_genes,
+      file = "results/single_copy_immune_genes.txt")
+```
