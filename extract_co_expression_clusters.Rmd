@@ -1,0 +1,125 @@
+
+
+1. Load libraries:
+
+```{r, message = FALSE}
+require(ggplot2)
+require(ggpubr)
+```
+
+2. Load data:
+- Load ohnolog information:
+
+```{r, message = FALSE}
+immune_ohnologs <- read.table(file = "input/ancestral_copy_plus_protein_length.txt",
+                              header = FALSE,
+                              col.names = c("gene_1_evol_dist",
+                                            "gene_2_evol_dist",
+                                            "esox_gene",
+                                            "strutta_gene_1",
+                                            "strutta_gene_2",
+                                            "esox_protein_length",
+                                            "strutta_gene_1_protein_length",
+                                            "strutta_gene_2_protein_length"))
+```
+
+3. Load clusters:
+
+```{r, message = FALSE}
+cluster_1 <- scan(file = "results/Clusters_Objects_cluster_1_gene_list.txt",
+                  as.character())
+cluster_1_df <- as.data.frame(cbind(cluster_1,
+                                    "1"))
+colnames(cluster_1_df) <- c("cluster",
+                            "id")
+cluster_2 <- scan(file = "results/Clusters_Objects_cluster_2_gene_list.txt",
+                  as.character())
+cluster_2_df <- as.data.frame(cbind(cluster_2,
+                                    "2"))
+colnames(cluster_2_df) <- c("cluster",
+                            "id")
+cluster_3 <- scan(file = "results/Clusters_Objects_cluster_3_gene_list.txt",
+                  as.character())
+cluster_3_df <- as.data.frame(cbind(cluster_3,
+                                    "3"))
+colnames(cluster_3_df) <- c("cluster",
+                            "id")
+cluster_4 <- scan(file = "results/Clusters_Objects_cluster_4_gene_list.txt",
+                  as.character())
+cluster_4_df <- as.data.frame(cbind(cluster_4,
+                                    "4"))
+colnames(cluster_4_df) <- c("cluster",
+                            "id")
+cluster_5 <- scan(file = "results/Clusters_Objects_cluster_5_gene_list.txt",
+                  as.character())
+cluster_5_df <- as.data.frame(cbind(cluster_5,
+                                    "5"))
+colnames(cluster_5_df) <- c("cluster",
+                            "id")
+cluster_6 <- scan(file = "results/Clusters_Objects_cluster_6_gene_list.txt",
+                  as.character())
+cluster_6_df <- as.data.frame(cbind(cluster_6,
+                                    "6"))
+colnames(cluster_6_df) <- c("cluster",
+                            "id")
+cluster_7 <- scan(file = "results/Clusters_Objects_cluster_7_gene_list.txt",
+                  as.character())
+cluster_7_df <- as.data.frame(cbind(cluster_7,
+                                    "7"))
+colnames(cluster_7_df) <- c("cluster",
+                            "id")
+cluster_8 <- scan(file = "results/Clusters_Objects_cluster_8_gene_list.txt",
+                  as.character())
+cluster_8_df <- as.data.frame(cbind(cluster_8,
+                                    "8"))
+colnames(cluster_8_df) <- c("cluster",
+                            "id")
+cluster_9 <- scan(file = "results/Clusters_Objects_cluster_9_gene_list.txt",
+                  as.character())
+cluster_9_df <- as.data.frame(cbind(cluster_9,
+                                    "9"))
+colnames(cluster_9_df) <- c("cluster",
+                            "id")
+
+cluster_list_df <- rbind(cluster_1_df,
+                     cluster_2_df,
+                     cluster_3_df,
+                     cluster_4_df,
+                     cluster_5_df,
+                     cluster_6_df,
+                     cluster_7_df,
+                     cluster_8_df,
+                     cluster_9_df)
+```
+
+4. Check if ohnologs were assigned to the same or different cluster:
+
+```{r, message = FALSE}
+immune_genes_div <- immune_ohnologs[ , 4]
+immune_genes_con <- immune_ohnologs[ , 5]
+
+## Combine matches:
+cluster_ohnolog_df <- cbind(cluster_list_df[match(immune_ohnologs$strutta_gene_1,
+                                                  cluster_list_df$cluster), ],
+                            cluster_list_df[match(immune_ohnologs$strutta_gene_2,
+                                                  cluster_list_df$cluster), ])
+
+## Update column ids:
+colnames(cluster_ohnolog_df) <- c("gene_1",
+                                   "cluster_id_1",
+                                   "gene_2",
+                                   "cluster_id_2")
+
+## Count pairs where each ohnolog pair was assigned to the cluster:
+cluster_pairs <- nrow(subset(cluster_ohnolog_df,
+            cluster_id_1 == cluster_id_2))
+
+## Count pairs that aren't assigned to the same cluster:
+cluster_nonpairs <- nrow(subset(cluster_ohnolog_df,
+            cluster_id_1 != cluster_id_2))
+     
+## Count number of genes where only one pair was assigned to a cluster:
+length(na.omit(cluster_ohnolog_df$gene_1)) - cluster_pairs - cluster_nonpairs
+
+length(na.omit(cluster_ohnolog_df$gene_2)) - cluster_pairs - cluster_nonpairs
+```
