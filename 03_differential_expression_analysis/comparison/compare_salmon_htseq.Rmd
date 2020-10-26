@@ -1,0 +1,101 @@
+
+
+
+1. Load libraries:
+
+```{r, message = FALSE}
+require(ggplot2)
+require(ggpubr)
+require(eulerr)
+```
+
+2. Load count information:
+
+```{r, message = FALSE}
+htseq_count <- read.table(file = "results/01_differentially_expressed/txi_count_estimates.txt",
+                          header = TRUE)
+nrow(htseq_count)
+
+salmon_count <- read.table(file = "data/salmon_deseq2_counts.txt",
+                           header = TRUE)
+nrow(salmon_count)
+row.names(salmon_count) <- gsub(pattern = "[.]1",
+                                replacement = "",
+                                row.names(salmon_count))
+```
+
+3. Match and plot:
+
+```{r, message = FALSE}
+## Turn off scientific notation:
+options(scipen = 666)
+
+htseq_count_matched <- htseq_count[match(row.names(salmon_count),
+                                         row.names(htseq_count)), ]
+
+## Calculate mean expression value:
+combined_counts_df <- as.data.frame(cbind(htseq = rowMeans(htseq_count_matched),
+                                          salmon = rowMeans(salmon_count)))
+
+## Plot:
+scatterplot <- ggplot(data = combined_counts_df,
+       aes(x = htseq,
+           y = salmon)) +
+        geom_point(alpha = 0.5) +
+        xlab(label = "STAR-HTSeq mean raw gene expression") +
+        ylab(label = "Salmon raw mean gene expression") +
+        theme_bw() +
+        theme(axis.title = element_text(face = "bold",
+                                        size = 12),
+              axis.text = element_text(face = "plain",
+                                       size = 10))
+
+scatterplot + stat_cor(method = "spearman",
+                       label.x = 500000,
+                       label.y = 500000)
+
+## Save to file:
+ggsave(file = "results/htseq_salmon_degs_scatterplot.pdf",
+       dpi = 600,
+       height = 8,
+       width = 8)
+```
+
+4. Check overlap between approaches in terms of differentially expressed genes:
+
+```{r, message = FALSE}
+htseq_deg <- read.table(file = "results/01_differentially_expressed/differentially_expressed_genes_raw.txt",
+                          header = TRUE)
+nrow(htseq_deg)
+
+salmon_deg <- read.table(file = "data/salmon_differentially_expressed_genes.txt",
+                           header = TRUE)
+row.names(salmon_deg) <- gsub(pattern = "[.]1",
+                                replacement = "",
+                                row.names(salmon_deg))
+nrow(salmon_deg)
+
+## Subset significant genes for both approaches:
+htseq_deg_sig <- subset(htseq_deg,
+                        padj < 0.05)
+nrow(htseq_deg_sig)
+
+salmon_deg_sig <- subset(salmon_deg,
+                        padj < 0.05)
+nrow(salmon_deg_sig)
+
+venndiagram <- euler(combinations = list("STAR-HTSeq" = row.names(htseq_deg_sig),
+                                         "Salmon" = row.names(salmon_deg_sig)))
+
+## Generate Venn diagram:
+pdf(file = "results/htseq_salmon_degs_venn_diagram.pdf")
+plot(venndiagram,
+     quantities = TRUE,
+     edges = TRUE)
+dev.off()
+```
+5. Run lintr:
+
+```{r, message = FALSE}
+lintr::lint(file = "compare_salmon_htseq.Rmd")
+```
