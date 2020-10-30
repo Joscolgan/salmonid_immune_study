@@ -1,0 +1,156 @@
+
+
+1. Load libraries:
+
+```{r, message = FALSE}
+require(biomaRt)
+require(ggplot2)
+require(dplyr)
+require(lintr)
+require(eulerr)
+
+2. Load ensembl databases:
+
+```{r, message = FALSE}
+listMarts()
+
+ensembl <- useMart("ensembl")
+
+datasets <- listDatasets(ensembl)
+
+ensembl <- useDataset("strutta_gene_ensembl",
+                     mart = ensembl)
+```
+3. Extract NCBI symbols:
+
+```{r, message = FALSE}
+## Identify NCBI gene ids:
+salmo_ncbi <- getBM(attributes = c('ensembl_gene_id',
+                                   'entrezgene_id',
+                                   'chromosome_name',
+                                   'start_position',
+                                   'end_position'),
+                    mart = ensembl)
+```
+
+4. Subset InterProScan domains assigned to brown trout immune ohnologs:
+
+```{r, message = FALSE}
+salmo_interpro <- getBM(attributes = c('ensembl_gene_id',
+                                   'chromosome_name',
+                                   'start_position',
+                                   'end_position',
+                                   'interpro',
+                                   'interpro_description'),
+                    mart = ensembl)
+
+salmo_interpro_df <- as.data.frame(table(salmo_interpro$ensembl_gene_id))
+```
+
+5. Read in list of immune ohnologs:
+
+```{r, message = FALSE}
+immune_ohnologs <- read.table(file = "input/ancestral_copy_plus_protein_length.txt",
+                              header = FALSE)
+immune_ohnologs$V5 <- gsub(pattern = "[.]1",
+                           replacement = "",
+                           immune_ohnologs$V5)
+immune_ohnologs$V4 <- gsub(pattern = "[.]1",
+                           replacement = "",
+                           immune_ohnologs$V4)
+
+immune_ohnologs$con_domains <- salmo_interpro_df[match(immune_ohnologs$V5,
+                        salmo_interpro_df$Var1), ]$Freq
+immune_ohnologs$div_domains <- salmo_interpro_df[match(immune_ohnologs$V4,
+                        salmo_interpro_df$Var1), ]$Freq
+
+## Compare mean number of functional domains:
+wilcox.test(immune_ohnologs$con_domains,
+            immune_ohnologs$div_domains)
+
+t.test(immune_ohnologs$V7,
+            immune_ohnologs$V8)
+
+t.test(immune_ohnologs$V1,
+            immune_ohnologs$V2)
+
+ggplot(data = immune_ohnologs,
+       aes(x = V7,
+           y = div_domains,
+           colour = "blue")) +
+        geom_point() +
+        geom_point(data = immune_ohnologs,
+                   aes(x = V8,
+                       y = con_domains,
+                       colour = "red"))
+
+immune_ohnologs_domains_diff <- subset(immune_ohnologs,
+          con_domains != div_domains)
+
+nrow(subset(immune_ohnologs_domains_diff,
+       con_domains < div_domains))
+```
+6. Read in clusters and check overlap.
+
+```{r, message = FALSE}
+cluster_1 <- scan(file = "data/Clusters_Objects_cluster_1_gene_list.txt",
+                  as.character())
+cluster_1_df <- as.data.frame(cbind(locus = cluster_1,
+                      cluster = "1"))
+cluster_2 <- scan(file = "data/Clusters_Objects_cluster_2_gene_list.txt",
+                  as.character())
+cluster_2_df <- as.data.frame(cbind(locus = cluster_2,
+                      cluster = "2"))
+cluster_3 <- scan(file = "data/Clusters_Objects_cluster_3_gene_list.txt",
+                  as.character())
+cluster_3_df <- as.data.frame(cbind(locus = cluster_3,
+                      cluster = "3"))
+cluster_4 <- scan(file = "data/Clusters_Objects_cluster_4_gene_list.txt",
+                  as.character())
+cluster_4_df <- as.data.frame(cbind(locus = cluster_4,
+                      cluster = "4"))
+cluster_5 <- scan(file = "data/Clusters_Objects_cluster_5_gene_list.txt",
+                  as.character())
+cluster_5_df <- as.data.frame(cbind(locus = cluster_5,
+                      cluster = "5"))
+cluster_6 <- scan(file = "data/Clusters_Objects_cluster_6_gene_list.txt",
+                  as.character())
+cluster_6_df <- as.data.frame(cbind(locus = cluster_6,
+                      cluster = "6"))
+cluster_7 <- scan(file = "data/Clusters_Objects_cluster_7_gene_list.txt",
+                  as.character())
+cluster_7_df <- as.data.frame(cbind(locus = cluster_7,
+                      cluster = "7"))
+cluster_8 <- scan(file = "data/Clusters_Objects_cluster_8_gene_list.txt",
+                  as.character())
+cluster_8_df <- as.data.frame(cbind(locus = cluster_8,
+                      cluster = "8"))
+cluster_9 <- scan(file = "data/Clusters_Objects_cluster_9_gene_list.txt",
+                  as.character())
+cluster_9_df <- as.data.frame(cbind(locus = cluster_9,
+                      cluster = "9"))
+
+## Generate a combined plot:
+combined_df <- rbind(cluster_1_df,
+                     cluster_2_df,
+                     cluster_3_df,
+                     cluster_4_df,
+                     cluster_5_df,
+                     cluster_6_df,
+                     cluster_7_df,
+                     cluster_8_df,
+                     cluster_9_df)
+
+combined_df$locus <- gsub(pattern = "[.].*",
+                          replacement = "",
+                          combined_df$locus)
+
+head(na.omit(combined_df[match(combined_df$locus,
+                  immune_ohnologs_domains_diff$V5), ]))
+```
+
+6. Run lintr:
+
+```{r, message = FALSE}
+lintr::lint(file = "identify_immune_genes_ensembl_ssalar.Rmd")
+```
