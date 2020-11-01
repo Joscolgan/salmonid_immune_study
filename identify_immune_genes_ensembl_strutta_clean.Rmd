@@ -1,0 +1,350 @@
+
+1. Load libraries:
+
+```{r, message = FALSE}
+require(biomaRt)
+require(ggplot2)
+require(dplyr)
+require(lintr)
+require(eulerr)
+```
+
+2. Load ensembl databases:
+
+```{r, message = FALSE}
+listMarts()
+
+ensembl <- useMart("ensembl")
+
+datasets <- listDatasets(ensembl)
+
+ensembl <- useDataset("strutta_gene_ensembl",
+                     mart = ensembl)
+```
+
+3. Extract NCBI gene symbols for Salmo trutta:
+
+```{r, message = FALSE}
+## Identify NCBI gene ids:
+salmo_ncbi <- getBM(attributes = c('ensembl_gene_id',
+                                   'entrezgene_id',
+                                   'chromosome_name',
+                                   'start_position',
+                                   'end_position'),
+                    mart = ensembl)
+```
+
+4. Extract homologs in Salmo salar homologs of Salmo trutta:
+
+```{r, message = FALSE}
+salmo_comp <- getBM(attributes = c('ensembl_gene_id',
+                                   'chromosome_name',
+                                   'start_position',
+                                   'end_position',
+                                   'ssalar_homolog_ensembl_gene',
+                                   'ssalar_homolog_chromosome',
+                                   'ssalar_homolog_chrom_start',
+                                   'ssalar_homolog_chrom_end',
+                                   'ssalar_homolog_orthology_type',
+                                   'ssalar_homolog_perc_id',
+                                   'ssalar_homolog_perc_id_r1',
+                                   'ssalar_homolog_goc_score',
+                                   'ssalar_homolog_wga_coverage',
+                                   'ssalar_homolog_orthology_confidence'),
+                    mart = ensembl)
+
+## Subset entries where confidence is '1':
+salmo_comp_sub <- subset(salmo_comp,
+       ssalar_homolog_orthology_confidence == "1")
+
+## Calculate the average percentage sequece similarity between matches:
+salmo_comp_sub$average_perc_id <- (salmo_comp_sub$ssalar_homolog_perc_id +
+                                           salmo_comp_sub$ssalar_homolog_perc_id_r1) / 2
+
+summary(salmo_comp_sub$average_perc_id)
+
+## Plot percentage similarity against each other and highlight "confident" calls:
+ggplot(data = salmo_comp,
+       aes(x = ssalar_homolog_perc_id_r1,
+           y = ssalar_homolog_perc_id)) +
+        geom_point() +
+        geom_point(data = salmo_comp_sub,
+                   aes(x = ssalar_homolog_perc_id_r1,
+                       y = ssalar_homolog_perc_id),
+                   colour = "blue")
+```
+
+5. Subset Salmo trutta homologs of Danio rerio immune genes:
+
+```{r, message = FALSE}
+## For putative mouse immune genes, gene ids were taken from ZFIN:
+zfish_immune_genes <- scan(file = "data/danio_rerio/drerio_immune_genes.txt",
+                           as.character())
+
+## Identify ensembl gene ids:
+zfish_ensembl <- useDataset("drerio_gene_ensembl",
+                            mart = ensembl)
+
+## Extract mig ids for each ensembl annotated gene:
+zfin_to_ensembl <- getBM(attributes = c('ensembl_gene_id',
+                     "zfin_id_id"),
+                     mart = zfish_ensembl)
+
+zfin_to_ensembl_immune <- subset(zfin_to_ensembl,
+                                zfin_id_id %in% zfish_immune_genes)
+
+danio_comp <- getBM(attributes = c('ensembl_gene_id',
+                     'chromosome_name',
+                     'start_position',
+                     'end_position',
+                     'drerio_homolog_ensembl_gene',
+                     'drerio_homolog_chromosome',
+                     'drerio_homolog_chrom_start',
+                     'drerio_homolog_chrom_end',
+                     'drerio_homolog_orthology_type',
+                     'drerio_homolog_perc_id',
+                     'drerio_homolog_perc_id_r1',
+                     'drerio_homolog_goc_score',
+                     'drerio_homolog_wga_coverage',
+                     'drerio_homolog_orthology_confidence'), 
+      mart = ensembl)
+
+## Subset entries where confidence is '1':
+danio_comp_sub <- subset(danio_comp,
+       drerio_homolog_orthology_confidence == "1")
+
+## Calculate the average percentage between matches:
+danio_comp_sub$average_perc_id <- (danio_comp_sub$drerio_homolog_perc_id + danio_comp_sub$drerio_homolog_perc_id_r1) / 2
+summary(danio_comp_sub$average_perc_id)
+
+danio_comp_sub <- subset(danio_comp_sub,
+                         average_perc_id >= 50)
+
+## Plot percentage similarity against each other and highlight "confident" calls:
+ggplot(data = danio_comp,
+       aes(x = drerio_homolog_perc_id_r1,
+           y = drerio_homolog_perc_id)) +
+        geom_point() +
+        geom_point(data = danio_comp_sub,
+                   aes(x = drerio_homolog_perc_id_r1,
+                       y = drerio_homolog_perc_id),
+                   colour = "blue")
+
+## Subset putative immmune homologs:
+danio_comp_immune <- subset(danio_comp_sub,
+                            drerio_homolog_ensembl_gene %in% zfin_to_ensembl_immune$ensembl_gene_id)
+
+summary(danio_comp_immune$average_perc_id)
+
+## Write to file:
+write.table(x = danio_comp_immune,
+            file = "results/drerio_strutta_high_confidence_orthologs.txt",
+            col.names = TRUE,
+            row.names = FALSE,
+            quote = FALSE,
+            sep = "\t")
+```
+
+6. Subset Salmo trutta homologs of Mus musculus genes:
+
+```{r, message = FALSE}
+## For putative mouse immune genes, gene ids were taken from MIG:
+mouse_immune_genes <- scan(file = "data/mus_musculus/mig_immune_genes.tmp",
+                           as.character())
+
+## Identify ensembl gene ids:
+mus_ensembl = useDataset("mmusculus_gene_ensembl",
+                     mart = ensembl)
+
+## Extract mig ids for each ensembl annotated gene:
+mig_to_ensembl <- getBM(attributes = c('ensembl_gene_id',
+                     "mgi_id"),
+                     mart = mus_ensembl)
+
+mig_to_ensembl_immune <- subset(mig_to_ensembl,
+                                mgi_id %in% mouse_immune_genes)
+
+mus_comp <- getBM(attributes = c('ensembl_gene_id',
+                     'chromosome_name',
+                     'start_position',
+                     'end_position',
+                     'mmusculus_homolog_ensembl_gene',
+                     'mmusculus_homolog_chromosome',
+                     'mmusculus_homolog_chrom_start',
+                     'mmusculus_homolog_chrom_end',
+                     'mmusculus_homolog_orthology_type',
+                     'mmusculus_homolog_perc_id',
+                     'mmusculus_homolog_perc_id_r1',
+                     'mmusculus_homolog_goc_score',
+                     #'mmusculus_homolog_wga_coverage',
+                     'mmusculus_homolog_orthology_confidence'),
+      mart = ensembl)
+
+## Subset entries where confidence is '1':
+mus_comp_sub <- subset(mus_comp,
+       mmusculus_homolog_orthology_confidence == "1")
+
+## Calculate the average percentage between matches:
+mus_comp_sub$average_perc_id <- (mus_comp_sub$mmusculus_homolog_perc_id +
+                                         mus_comp_sub$mmusculus_homolog_perc_id_r1) / 2
+summary(mus_comp_sub$average_perc_id)
+
+mus_comp_sub <- subset(mus_comp_sub,
+                       average_perc_id >= 50)
+
+## Plot percentage similarity against each other and highlight "confident" calls:
+ggplot(data = mus_comp,
+       aes(x = mmusculus_homolog_perc_id_r1,
+           y = mmusculus_homolog_perc_id)) +
+        geom_point() +
+        geom_point(data = mus_comp_sub,
+                   aes(x = mmusculus_homolog_perc_id_r1,
+                       y = mmusculus_homolog_perc_id),
+                   colour = "blue")
+
+## Subset putative immmune homologs:
+mus_comp_immune <- subset(mus_comp_sub,
+                          mmusculus_homolog_ensembl_gene %in% mig_to_ensembl_immune$ensembl_gene_id)
+
+summary(mus_comp_immune$average_perc_id)
+```
+
+7. Subset Salmo trutta homologs of Homo sapien immune genes:
+
+```{r, message = FALSE}
+## For putative mouse immune genes, gene ids were taken from Immport:
+human_immune_genes <- scan(file = "data/homo_sapiens/human_immune_gene_ids.txt",
+                           as.character())
+
+## Identify ensembl gene ids:
+homo_ensembl = useDataset("hsapiens_gene_ensembl",
+                     mart = ensembl)
+
+## Extract mig ids for each ensembl annotated gene:
+hgnc_to_ensembl <- getBM(attributes = c('ensembl_gene_id',
+                     "hgnc_symbol"),
+                     mart = homo_ensembl)
+
+hgnc_to_ensembl_immune <- subset(hgnc_to_ensembl,
+                                hgnc_symbol %in% human_immune_genes)
+
+human_comp <- getBM(attributes = c('ensembl_gene_id',
+                     'chromosome_name',
+                     'start_position',
+                     'end_position',
+                     'hsapiens_homolog_ensembl_gene',
+                     'hsapiens_homolog_chromosome',
+                     'hsapiens_homolog_chrom_start',
+                     'hsapiens_homolog_chrom_end',
+                     'hsapiens_homolog_orthology_type',
+                     'hsapiens_homolog_perc_id',
+                     'hsapiens_homolog_perc_id_r1',
+                     'hsapiens_homolog_goc_score',
+                     #'mmusculus_homolog_wga_coverage',
+                     'hsapiens_homolog_orthology_confidence'), 
+      mart = ensembl)
+
+## Subset entries where confidence is '1':
+human_comp_sub <- subset(human_comp,
+       hsapiens_homolog_orthology_confidence == "1")
+
+## Calculate the average percentage between matches:
+human_comp_sub$average_perc_id <- (human_comp_sub$hsapiens_homolog_perc_id + human_comp_sub$hsapiens_homolog_perc_id_r1) / 2
+summary(human_comp_sub$average_perc_id)
+
+human_comp_sub <- subset(human_comp_sub,
+                       average_perc_id >= 50)
+
+## Plot percentage similarity against each other and highlight "confident" calls:
+ggplot(data = human_comp,
+       aes(x = hsapiens_homolog_perc_id_r1,
+           y = hsapiens_homolog_perc_id)) +
+        geom_point() +
+        geom_point(data = human_comp_sub,
+                   aes(x = hsapiens_homolog_perc_id_r1,
+                       y = hsapiens_homolog_perc_id),
+                   colour = "blue")
+
+## Subset putative immmune homologs:
+human_comp_immune <- subset(human_comp_sub,
+                          hsapiens_homolog_ensembl_gene %in% hgnc_to_ensembl_immune$ensembl_gene_id)
+
+summary(human_comp_immune$average_perc_id)
+```
+
+8. Check the overlap over Strutta homologs of immune genes in other model organisms:
+
+```{r, message = FALSE}
+danio_comp_immune_id <- as.character(danio_comp_immune$ensembl_gene_id)
+mus_comp_immune_id <- as.character(mus_comp_immune$ensembl_gene_id)
+homo_comp_immune_id <- as.character(human_comp_immune$ensembl_gene_id)
+
+venndiagram <- euler(combinations = list("drerio_strutta" = unique(danio_comp_immune_id),
+                                        "mmusculus_strutta" = unique(mus_comp_immune_id),
+                                        "hsapiens_strutta" = unique(homo_comp_immune_id)))
+
+plot(venndiagram,
+     quantities = TRUE,
+     edges = TRUE)
+```
+
+9. Output nonredundant list:
+
+```{r, message = FALSE}
+unique_gene_list <- unique(sort(c(danio_comp_immune_id,
+                                  mus_comp_immune_id,
+                                  homo_comp_immune_id)))
+
+length(unique_gene_list)
+
+## Write to file:
+write(unique_gene_list,
+      file = "results/putative_strutta_immune_genes.txt")
+```
+
+10. Compare with northern pike:
+
+```{r, message = FALSE}
+## Identify ensembl gene ids:
+pike_comp <- getBM(attributes = c('ensembl_gene_id',
+                     'chromosome_name',
+                     'start_position',
+                     'end_position',
+                     'elucius_homolog_ensembl_gene',
+                     'elucius_homolog_chromosome',
+                     'elucius_homolog_chrom_start',
+                     'elucius_homolog_chrom_end',
+                     'elucius_homolog_orthology_type',
+                     'elucius_homolog_perc_id',
+                     'elucius_homolog_perc_id_r1',
+                     'elucius_homolog_goc_score',
+                     #'mmusculus_homolog_wga_coverage',
+                     'elucius_homolog_orthology_confidence'), 
+      mart = ensembl)
+
+## Subset entries where confidence is '1':
+pike_comp_sub <- subset(pike_comp,
+       elucius_homolog_orthology_confidence == "1")
+
+## Calculate the average percentage between matches:
+pike_comp_sub$average_perc_id <- (pike_comp_sub$elucius_homolog_perc_id + pike_comp_sub$elucius_homolog_perc_id_r1) / 2
+summary(pike_comp_sub$average_perc_id)
+
+## Subset putative homologs of brown trout immune genes:
+pike_comp_sub_immune <- subset(pike_comp_sub,
+                               ensembl_gene_id %in% unique_gene_list)
+table(table(pike_comp_sub_immune$elucius_homolog_ensembl_gene))
+```
+
+
+10. Save everything:
+
+```{r, message = FALSE}
+save.image(file = "results/putative_strutta_immune_genes.RData")
+```
+
+11. Run lintr:
+
+```{r, message = FALSE}
+lintr::lint(file = "identify_immune_genes_ensembl_strutta_clean.Rmd.Rmd")
+```
