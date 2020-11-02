@@ -1,0 +1,106 @@
+
+
+1. Load libraries:
+
+```{r, message = FALSE}
+require(ggplot2)
+```
+
+2. Load Orthogroup gene counts:
+
+```{r, message = FALSE}
+dir <- "input/primary_transcripts/OrthoFinder/Results_Oct31/Orthogroups/"
+og_gene_counts <- read.table(file = paste(dir,
+                                          "Orthogroups.GeneCount.tsv",
+                                          sep = ""),
+                             header = TRUE)
+
+## Read in list of orthogroups that contain Danio rerio annotated immune genes:
+danio_immune_ogs <- scan(file = "results/putative_strutta_immune_genes_orthogroups_counts.txt",
+                         as.character())
+
+## Subset relevant ogs:
+og_immune_counts <- subset(og_gene_counts,
+                           Orthogroup %in% danio_immune_ogs)
+
+## For each species calculate the proportion of orthologs:
+colSums(x = og_immune_counts[2:15])
+
+## Create a dataframe of counts:
+og_immune_counts_df <-  as.data.frame(colSums(x = og_immune_counts[2:15]))
+colnames(og_immune_counts_df) <- c("count")
+og_immune_counts_df$species <- row.names(og_immune_counts_df)
+
+firstup <- function(x) {
+  substr(x, 1, 1) <- toupper(substr(x, 1, 1))
+  x
+}
+
+## Update Species name:
+og_immune_counts_df$species <- gsub(pattern = "_",
+                                    replacement = ".",
+                                    og_immune_counts_df$species)
+
+og_immune_counts_df$species <- firstup(og_immune_counts_df$species)
+
+## Add Taxonomy:
+og_immune_counts_df$taxonomy <- c(rep("Non-Salmonid", 5),
+                                  rep("Mammal", 2),
+                                  rep("Salmonid", 1),
+                                  rep("Non-Salmonid", 1),
+                                  rep("Salmonid", 2),
+                                  rep("Non-Salmonid", 1),
+                                  rep("Salmonid", 2))
+
+## Sort dataframe by immune complement number:
+total_orthologues <- og_immune_counts_df[order(og_immune_counts_df$count), ]
+
+total_orthologues$species <- factor(total_orthologues$species,
+                              levels = unique(total_orthologues$species))
+
+## Remove the model organisms:
+total_orthologues <- subset(total_orthologues,
+                            species != "D.rerio")
+total_orthologues <- subset(total_orthologues,
+                            species != "H.sapiens")
+total_orthologues <- subset(total_orthologues,
+                            species != "M.musculus")
+```
+
+3. Generate plot:
+
+```{r, message = FALSE}
+total_barplot <- ggplot(data = total_orthologues,
+                  aes(x = species,
+                      y = count,
+                      fill = taxonomy)) +
+        xlab("Species") +
+        ylab("Number of putative immune homologs") +
+        geom_bar(stat = "identity",
+                 colour = "black") +
+        theme_bw() +
+        theme(axis.title = element_text(size = 12,
+                                        face = "bold"),
+              axis.text = element_text(size = 10,
+                                       face = "plain",
+                                       angle = 45,
+                                       hjust = 1),
+              legend.position = "bottom")
+
+## Update colours:
+total_barplot <- total_barplot + scale_fill_manual(values = c("Dark grey",
+                                       "Orange",
+                                       "Light blue"))
+```
+
+4. Save everything:
+
+```{r, message = FALSE}
+save.image(file = "ressults/combined_species_barchart_plot.RData")
+```
+
+5. Run lintr:
+
+```{r, message = FALSE}
+lintr::lint(file = "plot_immune_orthogroup_gene_counts.Rmd")
+```

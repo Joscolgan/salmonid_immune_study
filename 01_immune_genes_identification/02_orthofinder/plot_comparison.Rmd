@@ -1,0 +1,97 @@
+
+
+1. Load libraries:
+
+```{r, message = FALSE}
+require(ggplot2)
+require(biomaRt)
+```
+
+2. Load output from Ensembl data mining for D. rerio immune orthologs of Salmo trutta:
+
+```{r, message = FALSE}
+ensembl_drerio <- read.table(file = "ressults/drerio_strutta_high_confidence_orthologs.txt",
+                             header = TRUE)
+nrow(ensembl_drerio)
+
+orthologs <- as.data.frame(table(table(ensembl_drerio$drerio_homolog_ensembl_gene)))
+
+colnames(orthologs) <- c("frequency",
+                         "count")
+
+## read in full list of d rerio immunes and add missing orthologs:
+drerio_immune_genes <- scan(file = "ressults/drerio_immune_genes.txt",
+                                 as.character())
+
+## Identify ensembl gene ids:
+ensembl <- useMart("ensembl")
+zfish_ensembl <- useDataset("drerio_gene_ensembl",
+                     mart = ensembl)
+## Extract mig ids for each ensembl annotated gene:
+zfin_to_ensembl <- getBM(attributes = c("ensembl_gene_id",
+                                        "zfin_id_id"),
+                     mart = zfish_ensembl)
+zfin_to_ensembl_immune <- subset(zfin_to_ensembl,
+                                zfin_id_id %in% drerio_immune_genes)
+## Write to file:
+write.table(x = zfin_to_ensembl_immune,
+            file = "results/drerio_immune_genes_ensembl.txt",
+            col.names = TRUE,
+            row.names = FALSE,
+            quote = FALSE,
+            sep = "\t")
+
+## Check overlap:
+ensembl_drerio$drerio_homolog_ensembl_gene <- as.character(unlist(ensembl_drerio$drerio_homolog_ensembl_gene))
+
+table(table(sort(c(unique(zfin_to_ensembl_immune$ensembl_gene_id),
+             unique(ensembl_drerio$drerio_homolog_ensembl_gene)))))
+```
+
+3. Generate plot:
+
+```{r, message = FALSE}
+immune_barplot <- ggplot(data = orthologs,
+                  aes(x = frequency,
+                      y = count)) +
+        xlab("Salmo trutta") +
+        ylab("Number of immune genes") +
+        geom_bar(stat = "identity",
+                 colour = "black",
+                 fill = "white") +
+        theme_bw() +
+        theme(axis.title.y = element_blank(),
+              axis.title.x = element_text(size = 12,
+                                          face = "italic"),
+              axis.text = element_text(size = 10,
+                                       face = "plain",
+                                       hjust = 1),
+              legend.position = "bottom")
+```
+
+4. Comparison with the findings of OrthoFinder:
+
+```{r, message = FALSE}
+overlap <- read.table(file = "results/overlap.txt",
+                      header = FALSE,
+                      col.names = c("trout_id",
+                                    "trout_og",
+                                    "zebrafish_id",
+                                    "zebrafish_og"))
+
+## Convert factors to characters:
+overlap$trout_og <- as.character(unlist(overlap$trout_og))
+overlap$zebrafish_og <- as.character(unlist(overlap$zebrafish_og))
+
+## Check overlap in assignment of putative homologs to orthogroups:
+nrow(overlap)
+nrow(subset(overlap,
+            trout_og != zebrafish_og))
+```
+
+5. Run lintr:
+
+```{r, message = FALSE}
+lintr::lint(file = "plot_comparison.Rmd")
+```
+
