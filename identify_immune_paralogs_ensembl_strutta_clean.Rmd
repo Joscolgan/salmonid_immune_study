@@ -230,6 +230,21 @@ pike_comp_sub <- subset(pike_comp,
 ## Many to one:
 pike_comp_sub_one2many <- subset(pike_comp_sub,
                                  elucius_homolog_orthology_type == "ortholog_one2many")
+pike_comp_sub_one2many_immune <- subset(pike_comp_sub_one2many,
+                                       ensembl_gene_id %in% unique_gene_list)
+nrow(pike_comp_sub_one2many_immune)
+
+pike_comp_sub_one2one <- subset(pike_comp_sub,
+                                 elucius_homolog_orthology_type == "ortholog_one2one")
+
+pike_comp_sub_one2one_immune <- subset(pike_comp_sub_one2one,
+                                       ensembl_gene_id %in% unique_gene_list)
+
+pike_comp_sub_many2one <- subset(pike_comp_sub,
+                                 elucius_homolog_orthology_type == "ortholog_many2one")
+
+pike_comp_sub_many2one_immune <- subset(pike_comp_sub_many2one,
+                                       ensembl_gene_id %in% unique_gene_list)
 
 ## Calculate average percentage similarity:
 pike_comp_sub_one2many$average_perc_id <- (pike_comp_sub_one2many$elucius_homolog_perc_id + pike_comp_sub_one2many$elucius_homolog_perc_id_r1) / 2
@@ -255,6 +270,22 @@ pike_comp_sub_one2many_immune_ohno <- subset(pike_comp_sub_one2many_immune,
 
 ## Order by pike gene:
 pike_comp_sub_one2many_immune_ohno <- pike_comp_sub_one2many_immune_ohno[order(pike_comp_sub_one2many_immune_ohno$elucius_homolog_ensembl_gene), ]
+
+## Check overlap with paralogs:
+pike_salmoninae_paralogs <- subset(as.data.frame(table(sort(c(pike_comp_sub_one2many_immune_ohno$ensembl_gene_id,para_comp_within_salmoninae_match_high_sim$ensembl_gene_id)))),
+       Freq == 2)$Var1
+write(x = as.character(unlist(pike_salmoninae_paralogs)),
+      file = "results/pike_salmoninae_paralogs.txt")
+
+pike_salmo_paralogs <- subset(as.data.frame(table(sort(c(pike_comp_sub_one2many_immune_ohno$ensembl_gene_id,para_comp_within_salmo_match_high_sim$ensembl_gene_id)))),
+       Freq == 2)$Var1
+write(x = as.character(unlist(pike_salmo_paralogs)),
+      file = "results/pike_salmo_paralogs.txt")
+
+pike_strutta_paralogs <- subset(as.data.frame(table(sort(c(pike_comp_sub_one2many_immune_ohno$ensembl_gene_id,para_comp_within_strutta_match_high_sim$ensembl_gene_id)))),
+       Freq == 2)$Var1
+write(x = as.character(unlist(pike_strutta_paralogs)),
+      file = "results/pike_strutta_paralogs.txt")
 ```
 
 8. Calculate gene size for salmo trutta:
