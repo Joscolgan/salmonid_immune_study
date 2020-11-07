@@ -1,0 +1,148 @@
+
+
+1. Load libraries:
+
+```{r, message = FALSE}
+require(ggplot2)
+require(ggpubr)
+```
+
+2. Load input data:
+
+```{r, message = FALSE}
+ohnolog_data <- read.table(file = "data/ancestral_copy_plus_protein_length.txt",
+                           header = FALSE)
+```
+
+3. Load dnds estimates for ohnologs:
+
+```{r, message = FALSE}
+ohnolog_dnds <- read.table(file = "tmp/combined_div_con_dnds_new_2.txt",
+                           header = FALSE)
+
+## Convert values to numeric for plotting:
+ohnolog_data$div_dnds <- as.numeric(as.character(unlist(ohnolog_dnds$V4)))
+ohnolog_data$con_dnds <- as.numeric(as.character(unlist(ohnolog_dnds$V10)))
+```
+
+4. Match dataframes:
+
+```{r, message = FALSE}
+ggplot(data = ohnolog_data,
+       aes(x = div_dnds,
+           y = con_dnds)) +
+        geom_point(alpha = 0.5) +
+        xlab(label = "More diverged ohnolog - dN/dS ratio") +
+        ylab(label = "More conserved ohnolog - dN/dS ratio") +
+        theme_bw() +
+        theme(axis.title = element_text(face = "bold",
+                                        size = 12),
+              axis.text = element_text(face = "plain",
+                                       size = 10))
+
+t.test(ohnolog_data$div_dnds,
+            ohnolog_data$con_dnds)
+
+## Calculate differences:
+
+```
+
+5. Load differential expression results:
+
+```{r, message = FALSE}
+load(file = "input/ohnolog_sex_biased_differential_expression.RData")
+```
+
+6. Compare dN/dS ratios with gene expression:
+
+```{r, message = FALSE}
+nrow(immune_ohnologs_degs)
+
+## Assign mean gene expression:
+ohnolog_data$basemean_div <- immune_ohnologs_degs$gene_1_basemean
+ohnolog_data$basemean_con <- immune_ohnologs_degs$gene_2_basemean
+
+## Assign log2FoldChange:
+ohnolog_data$log2fc_div <- immune_ohnologs_degs$gene_1_log2FoldChange
+ohnolog_data$log2fc_con <- immune_ohnologs_degs$gene_2_log2FoldChange
+
+## Assign evolutionary distance:
+ohnolog_data$dist_div <- immune_ohnologs_degs$gene_1_evol_dist
+ohnolog_data$dist_con <- immune_ohnologs_degs$gene_2_evol_dist
+
+div_dnds_deg <- ggplot(data = ohnolog_data,
+       aes(x = div_dnds,
+           y = log2fc_div)) +
+        geom_point(alpha = 0.5) +
+        xlab(label = "More diverged ohnolog - dN/dS ratio") +
+        ylab(label = "More conserved ohnolog - dN/dS ratio") +
+        theme_bw() +
+        theme(axis.title = element_text(face = "bold",
+                                        size = 12),
+              axis.text = element_text(face = "plain",
+                                       size = 10))
+
+ggplot(data = ohnolog_data,
+       aes(x = log(div_dnds),
+           y = log(basemean_div),
+           colour = "darkorange")) +
+        geom_point(alpha = 0.5) +
+        xlab(label = "More diverged ohnolog - dN/dS ratio") +
+        ylab(label = "More conserved ohnolog - dN/dS ratio") +
+        theme_bw() +
+        theme(axis.title = element_text(face = "bold",
+                                        size = 12),
+              axis.text = element_text(face = "plain",
+                                       size = 10)) +
+        geom_point(data = ohnolog_data,
+                   aes(x = log(con_dnds),
+                       y = log(basemean_con),
+                       colour = "blue")) +
+        scale_color_manual(values = c("blue",
+                                      "darkorange"))
+
+
+ggplot(data = ohnolog_data,
+       aes(x = div_dnds,
+           y = dist_div,
+           colour = "darkorange")) +
+        geom_point(alpha = 0.5) +
+        xlab(label = "More diverged ohnolog - dN/dS ratio") +
+        ylab(label = "More conserved ohnolog - dN/dS ratio") +
+        theme_bw() +
+        theme(axis.title = element_text(face = "bold",
+                                        size = 12),
+              axis.text = element_text(face = "plain",
+                                       size = 10)) +
+        geom_point(data = ohnolog_data,
+                   aes(x = con_dnds,
+                       y = dist_con,
+                       colour = "blue")) +
+        scale_color_manual(values = c("blue",
+                                      "darkorange"))
+
+ggplot(data = ohnolog_data,
+       aes(x = div_dnds,
+           y = log2fc_div,
+           colour = "darkorange")) +
+        geom_point(alpha = 0.5) +
+        xlab(label = "More diverged ohnolog - dN/dS ratio") +
+        ylab(label = "More conserved ohnolog - dN/dS ratio") +
+        theme_bw() +
+        theme(axis.title = element_text(face = "bold",
+                                        size = 12),
+              axis.text = element_text(face = "plain",
+                                       size = 10)) +
+        geom_point(data = ohnolog_data,
+                   aes(x = con_dnds,
+                       y = log2fc_con,
+                       colour = "blue")) +
+        scale_color_manual(values = c("blue",
+                                      "darkorange"))
+
+ggarrange(con_dnds_deg,
+          div_dnds_deg,
+          nrow = 1,
+          ncol = 2,
+          align = "hv")
+```
