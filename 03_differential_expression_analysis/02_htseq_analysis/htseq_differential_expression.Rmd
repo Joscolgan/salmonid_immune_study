@@ -1,5 +1,5 @@
 --- 
-title: "Salmo sex study"
+title: "Salmonid immune study"
 output: htseq_differential_expression.html
 author: Joe Colgan (joscolgan)
 --- 
