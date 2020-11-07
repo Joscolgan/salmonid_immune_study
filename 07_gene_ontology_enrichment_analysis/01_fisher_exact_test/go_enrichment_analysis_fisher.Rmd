@@ -1,5 +1,5 @@
 --- 
-title: "Salmo sex study"
+title: "Salmonid immune study"
 output: go_enrichment_analysis_fisher.html
 author: Joe Colgan (joscolgan)
 ---
