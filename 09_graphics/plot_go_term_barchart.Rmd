@@ -1,5 +1,5 @@
 --- 
-title: "Salmo smoltification study"
+title: "Salmonid immune study"
 output: plot_go_term_barchart.html
 author: Joe Colgan (joscolgan)
 ---
