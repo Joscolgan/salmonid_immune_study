@@ -1,0 +1,179 @@
+
+
+1. Load libraries:
+
+```{r, message = FALSE}
+require(ggplot2)
+```
+
+2. Load data:
+
+```{r, message = FALSE}
+## Read in tissue expression:
+tissue_expression <- read.table(file = "data/strutta_raw_gene_level_counts.txt",
+                               header = TRUE)
+row.names(tissue_expression) <- gsub(pattern = "[.].*",
+                                     replacement = "",
+                                     row.names(tissue_expression))
+
+## Read in sex expression:
+sex_expression <- read.table(file = "data/salmon_deseq2_counts.txt",
+                               header = TRUE)
+row.names(sex_expression) <- gsub(pattern = "[.].*",
+                                     replacement = "",
+                                     row.names(sex_expression))
+```
+
+3. Read in single copy genes:
+
+```{r, message = FALSE}
+single_copy_genes <- scan(file = "input/single_copy_immune_genes.txt",
+                          as.character())
+
+all_single_genes <- scan(file = "input/putative_single_copy_strutta_genes.txt",
+                         as.character())
+
+## Calculate chi-squared test:
+non_immune_singles <- length(all_single_genes) - length(single_copy_genes)
+total_genes <- 43935
+non_single_copies <- total_genes - length(all_single_genes)
+
+non_immune_genes <- total_genes - 2275
+
+chisq.test(rbind(c(length(single_copy_genes), non_immune_singles),
+         c(2275 - 223, 39638)))
+```
+
+4. Subset single copy immune genes from each dataset:
+
+```{r, message = FALSE}
+single_tissue <- subset(tissue_expression,
+       row.names(tissue_expression) %in% all_single_genes)
+single_tissue_immune <- subset(tissue_expression,
+       row.names(tissue_expression) %in% single_copy_genes)
+wilcox.test(rowMeans(single_tissue),
+            rowMeans(single_tissue_immune))
+
+single_sex <- subset(sex_expression,
+       row.names(sex_expression) %in% all_single_genes)      
+single_sex_immune <- subset(sex_expression,
+       row.names(sex_expression) %in% single_copy_genes)
+wilcox.test(rowMeans(single_sex),
+            rowMeans(single_sex_immune))
+```
+
+5. Check location of single copy genes:
+
+```{r, message = FALSE}
+require(biomaRt)
+ensembl <- useMart("ensembl")
+datasets <- listDatasets(ensembl)
+ensembl <- useDataset("strutta_gene_ensembl",
+                     mart = ensembl)
+
+salmo_ncbi <- getBM(attributes = c('ensembl_gene_id',
+                                   'entrezgene_id',
+                                   'chromosome_name',
+                                   'start_position',
+                                   'end_position'),
+                    mart = ensembl)
+
+```
+
+6. Subset single copy genes:
+
+```{r, message = FALSE}
+table(subset(salmo_ncbi,
+       ensembl_gene_id %in% all_single_genes)$chromosome_name)
+
+chrom_table_sco_df <- as.data.frame(table(subset(salmo_ncbi,
+       ensembl_gene_id %in% all_single_genes)$chromosome_name))
+
+chrom_table_sco_df <- rbind(chrom_table_sco_df,
+                            cbind(Var1 = "11",
+                                  Freq = 0))
+
+## Convert Var1 to character:
+chrom_table_sco_df$Var1 <- as.character(unlist(chrom_table_sco_df$Var1))
+
+chrom_table_sco_df <- chrom_table_sco_df[order(chrom_table_sco_df$Var1), ]
+
+chrom_table_all_df <- as.data.frame(table(salmo_ncbi$chromosome_name))
+chrom_table_all_df$Var1 <- as.character(unlist(chrom_table_all_df$Var1))
+
+tmp <- cbind(head(chrom_table_sco_df, n = 40),
+      head(chrom_table_all_df, n = 40))
+
+## Calculate proportions:
+colnames(tmp) <- c("sco_chrom",
+                   "sco_count",
+                   "all_chrom",
+                   "all_count")
+
+tmp$sco_count <- as.numeric(as.character(unlist(tmp$sco_count)))
+tmp$all_count <- as.numeric(as.character(unlist(tmp$all_count)))
+
+tmp$calc <- tmp$sco_count / tmp$all_count
+
+## Convert Var1 to character:
+chrom_table_sco_df$Var1 <- as.character(unlist(chrom_table_sco_df$Var1))
+
+chrom_table_sco_df <- chrom_table_sco_df[order(chrom_table_sco_df$Var1), ]
+
+chrom_table_all_df <- as.data.frame(table(salmo_ncbi$chromosome_name))
+chrom_table_all_df$Var1 <- as.character(unlist(chrom_table_all_df$Var1))
+
+tmp <- cbind(head(chrom_table_sco_df, n = 40),
+      head(chrom_table_all_df, n = 40))
+
+## Calculate proportions:
+colnames(tmp) <- c("sco_chrom",
+                   "sco_count",
+                   "all_chrom",
+                   "all_count")
+
+tmp$sco_count <- as.numeric(as.character(unlist(tmp$sco_count)))
+tmp$all_count <- as.numeric(as.character(unlist(tmp$all_count)))
+
+tmp$calc <- tmp$sco_count / tmp$all_count
+
+
+
+## Subset single copy genes:
+single_copy_coordinates <- subset(salmo_ncbi,
+       ensembl_gene_id %in% all_single_genes)
+
+single_copy_coordinates <- single_copy_coordinates[
+        with(single_copy_coordinates,
+             order(single_copy_coordinates$chromosome_name,
+                   single_copy_coordinates$start_position)),
+        ]
+
+tmp_df <- data.frame()
+for (chromosome in 1:length(unique(single_copy_coordinates$chromosome_name))) {
+        tmp <- subset(single_copy_coordinates,
+                      chromosome_name == chromosome)
+        print(tmp)
+        tmp$diff <- c(0, diff(tmp$start_position))
+        tmp_df <- rbind(tmp_df,
+                        tmp)
+}
+
+
+salmo_ncbi <- salmo_ncbi[
+        with(salmo_ncbi,
+             order(salmo_ncbi$chromosome_name,
+                   salmo_ncbi$start_position)),
+        ]
+
+all_df <- data.frame()
+for (chromosome in 1:length(unique(salmo_ncbi$chromosome_name))) {
+        tmp <- subset(salmo_ncbi,
+                      chromosome_name == chromosome)
+        print(tmp)
+        tmp$diff <- c(0, diff(tmp$start_position))
+        all_df <- rbind(all_df,
+                        tmp)
+}
+
+```
