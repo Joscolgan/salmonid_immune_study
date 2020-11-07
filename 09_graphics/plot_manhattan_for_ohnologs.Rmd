@@ -1,5 +1,8 @@
-
-
+--- 
+title: "Salmonid immune study"
+output: plot_manhattan_for_ohnologs.html
+author: Joe Colgan (joscolgan)
+---
 
 1. Load libraries:
 
