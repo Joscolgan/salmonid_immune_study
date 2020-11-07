@@ -1,4 +1,8 @@
-
+--- 
+title: "Salmonid immune study"
+output: extract_co_expression_clusters.html
+author: Joe Colgan (joscolgan)
+---
 
 1. Load libraries:
 
