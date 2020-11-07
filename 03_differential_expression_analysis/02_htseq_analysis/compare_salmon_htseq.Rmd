@@ -7,9 +7,22 @@ author: Joe Colgan (joscolgan)
 1. Load libraries:
 
 ```{r, message = FALSE}
-require(ggplot2)
-require(ggpubr)
-require(eulerr)
+# Load libraries; install from scratch if needed
+libraries <- c("ggplot2",
+               "ggpubr",
+               "eulerr",
+               "lintr")
+for (lib in libraries) {
+    if (require(package = lib, character.only = TRUE)) {
+        print("Successful")
+    } else {
+        print("Installing")
+        source("https://bioconductor.org/biocLite.R")
+        library(lib, character.only = TRUE)
+    }
+}
+## Create output directory:
+dir.create("results")
 ```
 
 2. Load count information:
