@@ -1,5 +1,8 @@
-
-
+--- 
+title: "Salmonid immune study"
+output: compare_salmon_htseq.html
+author: Joe Colgan (joscolgan)
+---
 
 1. Load libraries:
 
