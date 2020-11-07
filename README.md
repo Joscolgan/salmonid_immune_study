@@ -1,7 +1,7 @@
 # salmonid immune study   
 Context & citation:  
 The results of this analysis are described in the manuscript:  
-## Evolution and expression of a facultatively anadromous salmonid.    
+## Evolution and expression of a facultatively anadromous salmonid    
 Colgan TJ, Moran PA, Archer LC, Wynne R, Hutton SA, McGinnity P, Reed TE.  
 Current under consideration in _Frontiers in Immunology_
 
