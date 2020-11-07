@@ -1,0 +1,117 @@
+
+
+1. Load libraries:
+
+```{r, message = FALSE}
+require(biomaRt)
+require(ggplot2)
+require(dplyr)
+require(lintr)
+require(eulerr)
+```
+
+2. Load ensembl database of interest:
+
+```{r, message = FALSE}
+listMarts()
+
+ensembl <- useMart("ensembl")
+
+datasets <- listDatasets(ensembl)
+
+ensembl <- useDataset("strutta_gene_ensembl",
+                     mart = ensembl)
+```
+
+3. Extract interproscan domains assigned to Salmo trutta genes:
+
+```{r, message = FALSE}
+salmo_interpro <- getBM(attributes = c("ensembl_gene_id",
+                                   "chromosome_name",
+                                   "start_position",
+                                   "end_position",
+                                   "interpro",
+                                   "interpro_description"),
+                    mart = ensembl)
+
+## Write to file:
+write.table(x = salmo_interpro,
+            file = "results/salmo_interpro_matches.txt",
+            col.names = TRUE,
+            row.names = FALSE,
+            quote = FALSE,
+            sep = "\t")
+```
+
+4. Read in list of immune ohnologs to compare:
+- Length of predicted proteins
+- Number of functional domains per ohnolog.
+
+```{r, message = FALSE}
+## Determine the frequency of domains per gene:
+salmo_interpro_df <- as.data.frame(table(salmo_interpro$ensembl_gene_id))
+
+## Read in putative immune genes:
+immune_ohnologs <- read.table(file = "input/ancestral_copy_plus_protein_length_pike.txt",
+                              header = FALSE)
+immune_ohnologs$V5 <- gsub(pattern = "[.]1",
+                           replacement = "",
+                           immune_ohnologs$V5)
+immune_ohnologs$V4 <- gsub(pattern = "[.]1",
+                           replacement = "",
+                           immune_ohnologs$V4)
+
+## Calculate the frequency of more conserved and diverged ohnologs:
+immune_ohnologs$con_domains <- salmo_interpro_df[match(immune_ohnologs$V5,
+                        salmo_interpro_df$Var1), ]$Freq
+immune_ohnologs$div_domains <- salmo_interpro_df[match(immune_ohnologs$V4,
+                        salmo_interpro_df$Var1), ]$Freq
+
+## Compare mean number of functional domains:
+wilcox.test(immune_ohnologs$con_domains,
+            immune_ohnologs$div_domains)
+
+t.test(immune_ohnologs$V7,
+            immune_ohnologs$V8)
+
+t.test(immune_ohnologs$V1,
+            immune_ohnologs$V2)
+
+## Generate basic plot:
+ggplot(data = immune_ohnologs,
+       aes(x = V7,
+           y = div_domains,
+           colour = "blue")) +
+        geom_point() +
+        geom_point(data = immune_ohnologs,
+                   aes(x = V8,
+                       y = con_domains,
+                       colour = "red"))
+
+## Calculate different number of domains:
+immune_ohnologs_domains_diff <- subset(immune_ohnologs,
+          con_domains != div_domains)
+
+nrow(subset(immune_ohnologs_domains_diff,
+       con_domains < div_domains))
+
+nrow(subset(immune_ohnologs_domains_diff,
+       con_domains > div_domains))
+
+different_domains <- subset(immune_ohnologs,
+          con_domains != div_domains)
+
+## Write to file:
+write.table(different_domains,
+            file = "results/salmo_interpro_matches_diff_domains.txt",
+            row.names = FALSE,
+            col.names = TRUE,
+            quote = FALSE,
+            sep = "\t")
+```
+
+5. Run lintr:
+
+```{r, message = FALSE}
+lintr::lint(file = "identify_interproscan_domains_immune_genes.Rmd")
+```
