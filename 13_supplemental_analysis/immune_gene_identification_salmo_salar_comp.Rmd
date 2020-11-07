@@ -1,5 +1,8 @@
-
-
+--- 
+title: "Salmonid immune study"
+output: immune_gene_identification_salmo_salar_comp.html
+author: Joe Colgan (joscolgan)
+---
 
 1. Load libraries:
 
