@@ -1,0 +1,212 @@
+
+1. Load libraries:
+
+```{r, message = FALSE}
+require(biomaRt)
+require(ggplot2)
+require(dplyr)
+require(lintr)
+require(eulerr)
+```
+
+2. Load ensembl databases:
+
+```{r, message = FALSE}
+listMarts()
+
+ensembl <- useMart("ensembl")
+
+datasets <- listDatasets(ensembl)
+
+ensembl <- useDataset("strutta_gene_ensembl",
+                     mart = ensembl)
+```
+
+3. Extract NCBI gene symbols for Salmo trutta:
+
+```{r, message = FALSE}
+## Identify NCBI gene ids:
+salmo_ncbi <- getBM(attributes = c('ensembl_gene_id',
+                                   'entrezgene_id',
+                                   'chromosome_name',
+                                   'start_position',
+                                   'end_position'),
+                    mart = ensembl)
+```
+
+4. Extract homologs in Salmo salar homologs of Salmo trutta:
+
+```{r, message = FALSE}
+salmo_comp <- getBM(attributes = c('ensembl_gene_id',
+                                   'chromosome_name',
+                                   'start_position',
+                                   'end_position',
+                                   'ssalar_homolog_ensembl_gene',
+                                   'ssalar_homolog_chromosome',
+                                   'ssalar_homolog_chrom_start',
+                                   'ssalar_homolog_chrom_end',
+                                   'ssalar_homolog_orthology_type',
+                                   'ssalar_homolog_perc_id',
+                                   'ssalar_homolog_perc_id_r1',
+                                   'ssalar_homolog_goc_score',
+                                   'ssalar_homolog_wga_coverage',
+                                   'ssalar_homolog_orthology_confidence'),
+                    mart = ensembl)
+
+## Subset entries where confidence is '1':
+salmo_comp_sub <- subset(salmo_comp,
+       ssalar_homolog_orthology_confidence == "1")
+
+## Calculate the average percentage sequece similarity between matches:
+salmo_comp_sub$average_perc_id <- (salmo_comp_sub$ssalar_homolog_perc_id +
+                                           salmo_comp_sub$ssalar_homolog_perc_id_r1) / 2
+
+summary(salmo_comp_sub$average_perc_id)
+
+## Plot percentage similarity against each other and highlight "confident" calls:
+ggplot(data = salmo_comp,
+       aes(x = ssalar_homolog_perc_id_r1,
+           y = ssalar_homolog_perc_id)) +
+        geom_point() +
+        geom_point(data = salmo_comp_sub,
+                   aes(x = ssalar_homolog_perc_id_r1,
+                       y = ssalar_homolog_perc_id),
+                   colour = "blue")
+```
+
+5. Subset Salmo trutta homologs of Danio rerio immune genes:
+
+```{r, message = FALSE}
+## For putative mouse immune genes, gene ids were taken from ZFIN:
+zfish_immune_genes <- scan(file = "data/danio_rerio/drerio_immune_genes.txt",
+                           as.character())
+
+## Identify ensembl gene ids:
+zfish_ensembl <- useDataset("drerio_gene_ensembl",
+                            mart = ensembl)
+
+## Extract mig ids for each ensembl annotated gene:
+zfin_to_ensembl <- getBM(attributes = c('ensembl_gene_id',
+                     "zfin_id_id"),
+                     mart = zfish_ensembl)
+
+zfin_to_ensembl_immune <- subset(zfin_to_ensembl,
+                                zfin_id_id %in% zfish_immune_genes)
+
+danio_comp <- getBM(attributes = c('ensembl_gene_id',
+                     'chromosome_name',
+                     'start_position',
+                     'end_position',
+                     'drerio_homolog_ensembl_gene',
+                     'drerio_homolog_chromosome',
+                     'drerio_homolog_chrom_start',
+                     'drerio_homolog_chrom_end',
+                     'drerio_homolog_orthology_type',
+                     'drerio_homolog_perc_id',
+                     'drerio_homolog_perc_id_r1',
+                     'drerio_homolog_goc_score',
+                     'drerio_homolog_wga_coverage',
+                     'drerio_homolog_orthology_confidence'), 
+      mart = ensembl)
+
+## Subset entries where confidence is '1':
+danio_comp_sub <- subset(danio_comp,
+       drerio_homolog_orthology_confidence == "1")
+
+## Calculate the average percentage between matches:
+danio_comp_sub$average_perc_id <- (danio_comp_sub$drerio_homolog_perc_id + danio_comp_sub$drerio_homolog_perc_id_r1) / 2
+summary(danio_comp_sub$average_perc_id)
+
+danio_comp_sub <- subset(danio_comp_sub,
+                         average_perc_id >= 50)
+
+## Plot percentage similarity against each other and highlight "confident" calls:
+ggplot(data = danio_comp,
+       aes(x = drerio_homolog_perc_id_r1,
+           y = drerio_homolog_perc_id)) +
+        geom_point() +
+        geom_point(data = danio_comp_sub,
+                   aes(x = drerio_homolog_perc_id_r1,
+                       y = drerio_homolog_perc_id),
+                   colour = "blue")
+
+## Subset putative immmune homologs:
+danio_comp_immune <- subset(danio_comp_sub,
+                            drerio_homolog_ensembl_gene %in% zfin_to_ensembl_immune$ensembl_gene_id)
+
+summary(danio_comp_immune$average_perc_id)
+
+## Write to file:
+write.table(x = danio_comp_immune,
+            file = "results/drerio_strutta_high_confidence_orthologs.txt",
+            col.names = TRUE,
+            row.names = FALSE,
+            quote = FALSE,
+            sep = "\t")
+```
+
+6. Subset genes that are:
+- One to one in Danio rerio and Salmo trutta
+- One to many in Danio rerio to Salmo trutta
+- Many to many in Danio rerio to Salmo trutta
+
+```{r, message = FALSE}
+tmp <- subset(danio_comp_sub,
+       drerio_homolog_ensembl_gene %in% zfin_to_ensembl_immune$ensembl_gene_id)
+
+table(tmp$drerio_homolog_orthology_type)
+
+## Subset one to many immune genes:
+one_to_many_immune_genes <- subset(tmp,
+                                   drerio_homolog_orthology_type == "ortholog_one2many")
+
+table(table(sort(one_to_many_immune_genes$ensembl_gene_id)))
+
+table(table(sort(one_to_many_immune_genes$drerio_homolog_ensembl_gene)))
+
+dir.create(path = "results/d_rerio",
+           recursive = TRUE)
+
+## Write table:
+write.table(x = one_to_many_immune_genes,
+            file = "results/d_rerio/one_to_many_immune_genes.txt",
+            row.names = TRUE,
+            col.names = TRUE,
+            quote = FALSE,
+            sep = "\t")
+
+## Subset one to one immune genes:
+one_to_one_immune_genes <- subset(tmp,
+                                   drerio_homolog_orthology_type == "ortholog_one2one")
+
+table(table(sort(one_to_one_immune_genes$ensembl_gene_id)))
+
+table(table(sort(one_to_one_immune_genes$drerio_homolog_ensembl_gene)))
+
+## Write table:
+write.table(x = one_to_one_immune_genes,
+            file = "results/d_rerio/one_to_one_immune_genes.txt",
+            row.names = TRUE,
+            col.names = TRUE,
+            quote = FALSE,
+            sep = "\t")
+
+## Subset one to one immune genes:
+many_to_many_immune_genes <- subset(tmp,
+                                   drerio_homolog_orthology_type == "ortholog_many2many")
+
+table(table(sort(many_to_many_immune_genes$ensembl_gene_id)))
+
+table(table(sort(many_to_many_immune_genes$drerio_homolog_ensembl_gene)))
+
+
+## Write table:
+write.table(x = many_to_many_immune_genes,
+            file = "results/d_rerio/one_to_many_immune_genes.txt",
+            row.names = TRUE,
+            col.names = TRUE,
+            quote = FALSE,
+            sep = "\t")
+```
+
+
