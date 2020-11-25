@@ -10,8 +10,16 @@ require(ggpubr)
 2. Load input data:
 
 ```{r, message = FALSE}
-ohnolog_data <- read.table(file = "data/ancestral_copy_plus_protein_length.txt",
+ohnolog_data <- read.table(file = "data/ancestral_copy_plus_protein_length_pike.txt",
                            header = FALSE)
+
+ohnolog_data$V4 <- gsub(pattern = "[.].*",
+                        replacement = "",
+                        ohnolog_data$V4)
+
+ohnolog_data$V5 <- gsub(pattern = "[.].*",
+                        replacement = "",
+                        ohnolog_data$V5)
 ```
 
 3. Load dnds estimates for ohnologs:
@@ -20,31 +28,171 @@ ohnolog_data <- read.table(file = "data/ancestral_copy_plus_protein_length.txt",
 ohnolog_dnds <- read.table(file = "tmp/combined_div_con_dnds_new_2.txt",
                            header = FALSE)
 
+ohnolog_dnds_matched <- ohnolog_dnds[match(ohnolog_data$V4,
+                   ohnolog_dnds$V1), ]
+
+## Add codeml values:
+ohnolog_data$dnds_div <- ohnolog_dnds_matched$V4
+ohnolog_data$dnds_con <- ohnolog_dnds_matched$V10
+
 ## Convert values to numeric for plotting:
-ohnolog_data$div_dnds <- as.numeric(as.character(unlist(ohnolog_dnds$V4)))
-ohnolog_data$con_dnds <- as.numeric(as.character(unlist(ohnolog_dnds$V10)))
+ohnolog_data$dnds_div <- as.numeric(as.character(unlist(ohnolog_data$dnds_div)))
+ohnolog_data$dnds_con <- as.numeric(as.character(unlist(ohnolog_data$dnds_con)))
+
+## Add gene position information:
+conserved_gene_info <- read.table(file = "data/immune_ohnologs_conserved_gene_info.txt",
+                                  header = FALSE,
+                                  col.names = c("gene_con",
+                                                "loc_con",
+                                                "description_con",
+                                                "chromosome_con",
+                                                "start_con",
+                                                "end_con"))
+
+ohnolog_data$annotation_con <- conserved_gene_info[match(ohnolog_data$V5,
+                          conserved_gene_info$gene_con), ]
+
+diverged_gene_info <- read.table(file = "data/immune_ohnologs_diverged_gene_info.txt",
+                                  header = FALSE,
+                                 col.names = c("gene_div",
+                                                "loc_div",
+                                                "description_div",
+                                                "chromosome_div",
+                                                "start_div",
+                                                "end_div"))
+
+ohnolog_data$annotation_div <- diverged_gene_info[match(ohnolog_data$V4,
+                          diverged_gene_info$gene_div), ]
+
+write.table(x = ohnolog_data,
+            file = "results/ohnolog_data_gene_info.txt",
+            col.names = TRUE,
+            row.names = FALSE,
+            quote = FALSE,
+            sep = "\t")
+
+## Add gene expression information:
+degs <- read.table(file = "input/salmon_deseq2_counts.txt",
+                   header = TRUE)
+row.names(degs) <- gsub(pattern = "[.].*",
+                        replacement = "",
+                        row.names(degs))
+
+ohnolog_data$div_mean <- rowMeans(degs[match(ohnolog_data$V4,
+           row.names(degs)), ])
+
+ohnolog_data$con_mean <- rowMeans(degs[match(ohnolog_data$V5,
+           row.names(degs)), ])
+
+## Information on functional domains:
+interpro_analysis <- read.table(file = "input/salmo_interpro_matches_domain_analysis.txt",
+                                header = TRUE)
+
+ohnolog_data$div_domain <- interpro_analysis[match(ohnolog_data$V4,
+                                                 interpro_analysis$V4), ]$div_domains
+
+ohnolog_data$con_mean <- rowMeans(degs[match(ohnolog_data$V5,
+           row.names(degs)), ])
+
+ohnolog_data$con_domain <- interpro_analysis[match(ohnolog_data$V5,
+                                                 interpro_analysis$V5), ]$con_domains
 ```
 
 4. Match dataframes:
 
 ```{r, message = FALSE}
-ggplot(data = ohnolog_data,
-       aes(x = div_dnds,
-           y = con_dnds)) +
-        geom_point(alpha = 0.5) +
-        xlab(label = "More diverged ohnolog - dN/dS ratio") +
-        ylab(label = "More conserved ohnolog - dN/dS ratio") +
+dnsd_plot <- ggplot(data = ohnolog_data,
+       aes(x = dnds_div,
+           y = dnds_con)) +
+        geom_point(alpha = 0.5,
+                   colour = "blue") +
+        xlab(label = "Gene 1 - dN/dS ratio") +
+        ylab(label = "Gene 2 - dN/dS ratio") +
         theme_bw() +
         theme(axis.title = element_text(face = "bold",
                                         size = 12),
               axis.text = element_text(face = "plain",
                                        size = 10))
 
-t.test(ohnolog_data$div_dnds,
-            ohnolog_data$con_dnds)
+evol_dist_plot <- ggplot(data = ohnolog_data,
+       aes(x = log2(V1),
+           y = log2(V2))) +
+        geom_point(alpha = 0.5,
+                   colour = "blue") +
+        xlab(label = "Gene 1 - Log2-transformed evolutionary distance") +
+        ylab(label = "Gene 2 - Log2-transformed evolutionary distance") +
+        theme_bw() +
+        theme(axis.title = element_text(face = "bold",
+                                        size = 12),
+              axis.text = element_text(face = "plain",
+                                       size = 10))
 
-## Calculate differences:
+protein_length_plot <- ggplot(data = ohnolog_data,
+       aes(x = V7,
+           y = V8)) +
+        geom_point(alpha = 0.5,
+                   colour = "blue") +
+        xlab(label = "Gene 1 - protein length (aa)") +
+        ylab(label = "Gene 2 - protein length (aa)") +
+        theme_bw() +
+        theme(axis.title = element_text(face = "bold",
+                                        size = 12),
+              axis.text = element_text(face = "plain",
+                                       size = 10))
 
+wilcox.test(ohnolog_data$div_mean,
+            ohnolog_data$con_mean)
+
+mean_expression_plot <- ggplot(data = ohnolog_data,
+       aes(x = log2(div_mean),
+           y = log2(con_mean))) +
+        geom_point(alpha = 0.5,
+                   colour = "blue") +
+        xlab(label = "Gene 1 - log2-transformed gene expression") +
+        ylab(label = "Gene 2 - log2-transformed gene expression") +
+        theme_bw() +
+        theme(axis.title = element_text(face = "bold",
+                                        size = 12),
+              axis.text = element_text(face = "plain",
+                                       size = 10))
+
+
+domain_plot <- ggplot(data = ohnolog_data,
+       aes(x = div_domain,
+           y = con_domain)) +
+        geom_point(alpha = 0.5,
+                   colour = "blue") +
+        xlab(label = "Gene 1 - number of predicted functional domains") +
+        ylab(label = "Gene 2 - number of predicted functional domains") +
+        theme_bw() +
+        theme(axis.title = element_text(face = "bold",
+                                        size = 12),
+              axis.text = element_text(face = "plain",
+                                       size = 10))
+```
+
+5. Generate a combined plot:
+
+```{r, message = FALSE}
+ggarrange(evol_dist_plot,
+          mean_expression_plot,
+          domain_plot,
+          dnsd_plot,
+          labels = c("A",
+                     "B",
+                     "C",
+                     "D"),
+          align = "hv")
+
+## Save to file:
+ggsave(file = "results/combined_ohnolog_analysis.png",
+       height = 8,
+       width = 8)
+
+ggsave(file = "results/combined_ohnolog_analysis.pdf",
+       dpi = 600,
+       height = 8,
+       width = 8)
 ```
 
 5. Load differential expression results:
