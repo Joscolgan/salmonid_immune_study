@@ -202,7 +202,7 @@ table(table(sort(many_to_many_immune_genes$drerio_homolog_ensembl_gene)))
 
 ## Write table:
 write.table(x = many_to_many_immune_genes,
-            file = "results/d_rerio/one_to_many_immune_genes.txt",
+            file = "results/d_rerio/many_to_many_immune_genes.txt",
             row.names = TRUE,
             col.names = TRUE,
             quote = FALSE,
