@@ -1,0 +1,197 @@
+
+1. Load libraries:
+
+```{r, message = FALSE}
+require(ggplot2)
+require(reshape2)
+```
+
+2. Load in data:
+
+```{r, message = FALSE}
+raw_gene_counts <- read.table(file = "data/strutta_raw_gene_level_counts.txt",
+                              header = TRUE)
+row.names(raw_gene_counts) <- gsub(pattern = "[.].*",
+                                   replacement = "",
+                                   row.names(raw_gene_counts))
+## Update column names:
+colnames(raw_gene_counts) <- c("pyloric_caeca",
+                               "spleen",
+                               "brain",
+                               "gill",
+                               "skin",
+                               "kidney",
+                               "liver",
+                               "gonads")
+```
+
+3. Load genes with homology to annotated immune genes in model organisms:
+
+```{r, message = FALSE}
+immune_genes <- scan(file = "data/putative_strutta_immune_genes.txt",
+                     as.character())
+```
+
+4. Subset immune genes:
+
+```{r, message = FALSE}
+raw_immune_counts <- subset(raw_gene_counts,
+                            row.names(raw_gene_counts) %in% immune_genes)
+```
+
+5. Extract genes where expressed is detected in all tissues:
+
+```{r, message = FALSE}
+table(rowMeans(raw_immune_counts) > 0)
+
+row_sub = apply(raw_immune_counts, 1,
+                function(row) all(row !=0 ))
+raw_immune_counts <- raw_immune_counts[row_sub, ]
+```
+
+6. Compare expression of immune vs non-immune genes for each tissue:
+
+```{r, message = FALSE}
+for (tissue in 1:ncol(raw_gene_counts)){
+        print(names(raw_gene_counts)[tissue])
+        ## Subset immune genes:
+        immune_temp <- subset(raw_gene_counts,
+               row.names(raw_gene_counts) %in% immune_genes)
+        ## Subset non-immune genes:
+        non_immune_temp <- subset(raw_gene_counts,
+                                  !(row.names(raw_gene_counts) %in% immune_genes))
+        print(wilcox.test(immune_temp[[tissue]],
+                    non_immune_temp[[tissue]]))
+
+}
+```
+
+7. Examine ohnologs were one copy is not expressed:
+
+```{r, message = FALSE}
+immune_ohnologs <- read.table(file = "input/ancestral_copy_plus_protein_length.txt",
+                              header = FALSE)
+immune_ohnologs$V4 <- gsub(pattern = "[.].*",
+                           replacement = "",
+                           immune_ohnologs$V4)
+immune_ohnologs$V5 <- gsub(pattern = "[.].*",
+                           replacement = "",
+                           immune_ohnologs$V5)
+
+raw_immune_counts_div <- raw_immune_counts[match(immune_ohnologs$V4,
+                        row.names(raw_immune_counts)), ]
+raw_immune_counts_div$locus <- immune_ohnologs$V4
+raw_immune_counts_con <- raw_immune_counts[match(immune_ohnologs$V5,
+                        row.names(raw_immune_counts)), ]
+raw_immune_counts_con$locus <- immune_ohnologs$V5
+
+combined_df <- as.data.frame(cbind(raw_immune_counts_div,
+                                   raw_immune_counts_con))
+
+## How many are not expressed?
+nrow(na.omit(raw_immune_counts_div))
+nrow(na.omit(raw_immune_counts_con))
+nrow(na.omit(combined_df))
+
+combined_df$locus <- NULL
+combined_df$locus <- NULL
+
+normalised_counts <- t(scale(t(as.matrix(combined_df)),
+                             center = TRUE,
+                             scale = TRUE))
+
+## Convert to dataframe:
+normalised_counts_df <- as.data.frame(normalised_counts)
+```
+
+8. Extract normalised counts for genes of interest:
+
+```{r, message = FALSE}
+## Update column names:
+colnames(normalised_counts) <- c("pyloric_caeca_con",
+                                 "spleen_con",
+                                 "brain_con",
+                                 "gill_con",
+                                 "skin_con",
+                                 "kidney_con",
+                                 "liver_con",
+                                 "gonad_con",
+                                 "pyloric_caeca_div",
+                                 "spleen_div",
+                                 "brain_div",
+                                 "gill_div",
+                                 "skin_div",
+                                 "kidney_div",
+                                 "liver_div",
+                                 "gonad_div"
+                                 )
+
+## Cluster based on euclidean distance:
+dd <- hclust(dist(na.omit(normalised_counts)))
+## Reorder:
+normalised_counts_ordered <- as.data.frame(normalised_counts[rev(dd$order), ])
+normalised_counts_ordered$locus <- row.names(normalised_counts_ordered)
+## Transform dataframe:
+normalised_counts_ordered_melt <- melt(normalised_counts_ordered)
+## Update column names:
+colnames(normalised_counts_ordered_melt) <- c("gene_name",
+                                              "sample",
+                                              "counts")
+## Update levels for plotting:
+normalised_counts_ordered_melt$gene_name <-
+        factor(normalised_counts_ordered_melt$gene_name,
+               levels = rev(unique(c(as.character(unlist(normalised_counts_ordered_melt$gene_name))))))
+```
+
+9. Plot heatmap:
+
+```{r, message = FALSE}
+## Assign the name of dataframe to plot:
+input <- normalised_counts_ordered_melt
+## Remove underscores in sample names:
+input$sample <- gsub(pattern = "_",
+                     replacement = " ",
+                     input$sample)
+## Update levels for plotting:
+input$sample <- factor(input$sample,
+                       levels = unique(input$sample))
+## Generate heatmap:
+heatmap_plot <- ggplot(input,
+                       aes(sample,
+                           gene_name)) +
+        geom_tile(aes(fill = counts)) +
+        geom_vline(xintercept = c(0.5,
+                                  8.5,
+                                  14.5,
+                                  22.5)) +
+        scale_fill_gradient2(low = "black",
+                             mid = "white",
+                             high = "red") +
+        ylab("") +
+        xlab("") +
+        theme(legend.title = element_text(size = 10,
+                                          face = "bold"),
+              legend.text = element_text(size = 10,
+                                         face = "bold"),
+              axis.text.x = element_text(size = 8,
+                                         face = "bold",
+                                         colour = "black",
+                                         angle = 90,
+                                         hjust = 1),
+              axis.text.y = element_blank(),
+              axis.ticks.y = element_blank(),
+              axis.title = element_text(size = 10,
+                                        face = "bold"),
+              panel.grid.major = element_blank(),
+              panel.grid.minor = element_blank(),
+              panel.background = element_blank(),
+              legend.position = "bottom") +
+        scale_y_discrete(position = "right") +
+        labs(fill = "Absolute normalised gene expression")
+```
+
+10. Run lintr:
+
+```{r, message = FALSE}
+lintr::lint(file = "examine_tissue_expression.Rmd")
+```

@@ -1,0 +1,329 @@
+
+
+1. Load libraries:
+
+```{r, message = FALSE}
+require(ggplot2)
+require(ggpubr)
+require(reshape2)
+```
+
+2. Load data:
+- Load ohnolog information:
+
+```{r, message = FALSE}
+immune_ohnologs <- read.table(file = "input/ancestral_copy_plus_protein_length_pike.txt",
+                              header = FALSE,
+                              col.names = c("gene_1_evol_dist",
+                                            "gene_2_evol_dist",
+                                            "esox_gene",
+                                            "strutta_gene_1",
+                                            "strutta_gene_2",
+                                            "esox_protein_length",
+                                            "strutta_gene_1_protein_length",
+                                            "strutta_gene_2_protein_length"))
+
+## Transform factors to characters:
+immune_ohnologs$strutta_gene_1 <- as.character(unlist(immune_ohnologs$strutta_gene_1))
+immune_ohnologs$strutta_gene_2 <- as.character(unlist(immune_ohnologs$strutta_gene_2))
+
+## Remove extension:
+immune_ohnologs$strutta_gene_1 <- gsub(pattern = "[.].*",
+                                       replacement = "",
+                                       immune_ohnologs$strutta_gene_1)
+
+immune_ohnologs$strutta_gene_2 <- gsub(pattern = "[.].*",
+                                       replacement = "",
+                                       immune_ohnologs$strutta_gene_2)
+```
+
+3. Load clusters:
+
+```{r, message = FALSE}
+cluster_1 <- scan(file = "results/Clusters_Objects_cluster_1_gene_list.txt",
+                  as.character())
+cluster_1_df <- as.data.frame(cbind(cluster_1,
+                                    "1"))
+colnames(cluster_1_df) <- c("cluster",
+                            "id")
+cluster_2 <- scan(file = "results/Clusters_Objects_cluster_2_gene_list.txt",
+                  as.character())
+cluster_2_df <- as.data.frame(cbind(cluster_2,
+                                    "2"))
+colnames(cluster_2_df) <- c("cluster",
+                            "id")
+cluster_3 <- scan(file = "results/Clusters_Objects_cluster_3_gene_list.txt",
+                  as.character())
+cluster_3_df <- as.data.frame(cbind(cluster_3,
+                                    "3"))
+colnames(cluster_3_df) <- c("cluster",
+                            "id")
+cluster_4 <- scan(file = "results/Clusters_Objects_cluster_4_gene_list.txt",
+                  as.character())
+cluster_4_df <- as.data.frame(cbind(cluster_4,
+                                    "4"))
+colnames(cluster_4_df) <- c("cluster",
+                            "id")
+cluster_5 <- scan(file = "results/Clusters_Objects_cluster_5_gene_list.txt",
+                  as.character())
+cluster_5_df <- as.data.frame(cbind(cluster_5,
+                                    "5"))
+colnames(cluster_5_df) <- c("cluster",
+                            "id")
+cluster_6 <- scan(file = "results/Clusters_Objects_cluster_6_gene_list.txt",
+                  as.character())
+cluster_6_df <- as.data.frame(cbind(cluster_6,
+                                    "6"))
+colnames(cluster_6_df) <- c("cluster",
+                            "id")
+cluster_7 <- scan(file = "results/Clusters_Objects_cluster_7_gene_list.txt",
+                  as.character())
+cluster_7_df <- as.data.frame(cbind(cluster_7,
+                                    "7"))
+colnames(cluster_7_df) <- c("cluster",
+                            "id")
+
+cluster_list_df <- rbind(cluster_1_df,
+                     cluster_2_df,
+                     cluster_3_df,
+                     cluster_4_df,
+                     cluster_5_df,
+                     cluster_6_df,
+                     cluster_7_df)
+```
+
+4. Check if ohnologs were assigned to the same or different cluster:
+
+```{r, message = FALSE}
+immune_genes_div <- immune_ohnologs[, 4]
+immune_genes_con <- immune_ohnologs[, 5]
+
+## Combine matches:
+cluster_ohnolog_df <- cbind(cluster_list_df[match(immune_ohnologs$strutta_gene_1,
+                                                  cluster_list_df$cluster), ],
+                            cluster_list_df[match(immune_ohnologs$strutta_gene_2,
+                                                  cluster_list_df$cluster), ])
+
+## Update column ids:
+colnames(cluster_ohnolog_df) <- c("gene_1",
+                                   "cluster_id_1",
+                                   "gene_2",
+                                   "cluster_id_2")
+
+## Count pairs where each ohnolog pair was assigned to the cluster:
+cluster_pairs <- nrow(subset(cluster_ohnolog_df,
+            cluster_id_1 == cluster_id_2))
+
+## Count pairs that aren't assigned to the same cluster:
+cluster_nonpairs <- nrow(subset(cluster_ohnolog_df,
+                                cluster_id_1 != cluster_id_2))
+     
+## Count number of genes where only one pair was assigned to a cluster:
+length(na.omit(cluster_ohnolog_df$gene_1)) - cluster_pairs - cluster_nonpairs
+
+length(na.omit(cluster_ohnolog_df$gene_2)) - cluster_pairs - cluster_nonpairs
+```
+
+5. Compare mean expression across 37 samples:
+
+```{r, message = FALSE}
+## Read in file containing deseq2 gene-level counts:
+deseq2_counts <- read.table(file = "data/salmon_deseq2_counts.txt",
+                            header = TRUE)
+row.names(deseq2_counts) <- gsub(pattern = "[.].*",
+                                 replacement = "",
+                                 row.names(deseq2_counts))
+
+## Subset ohnologs:
+div_deg <- deseq2_counts[match(immune_ohnologs$strutta_gene_1,
+                            row.names(deseq2_counts)), ]
+div_deg$mean <- rowMeans(div_deg)
+con_deg <- deseq2_counts[match(immune_ohnologs$strutta_gene_2,
+                            row.names(deseq2_counts)), ]
+con_deg$mean <- rowMeans(con_deg)
+
+## Check correlation:
+cor.test(con_deg$mean,
+         div_deg$mean)
+
+## Create a new dataframe:
+combined_deg <- as.data.frame(cbind(con = con_deg$mean,
+                       div = div_deg$mean))
+
+## Log2 transform data for plotting:
+combined_deg$con_deg_log <- log2(combined_deg$con)
+combined_deg$div_deg_log <- log2(combined_deg$div)
+
+## Plot correlation:
+cor_plot <- ggplot(data = combined_deg,
+       aes(x = con_deg_log,
+           y = div_deg_log)) +
+        xlab(label = "Log2-transformed gene-level counts - copy 1") +
+        ylab(label = "log2-transformed gene-level counts - copy 2") +
+        geom_point(alpha = 0.5) +
+        theme_bw() +
+        theme(axis.title = element_text(face = "bold",
+                                        size = 12),
+              axis.text = element_text(face = "plain",
+                                       size = 10))
+```
+
+6. For ohnologs not assigned to the same cluster:
+
+```{r, message = FALSE}
+tissue_expression <- read.table(file = "results/Processed_Data/strutta_immune_ohnologs_raw_gene_level_counts.txt_processed.tsv",
+                                header = TRUE)
+tissue_expression$Genes <- gsub(pattern = "[.].*",
+                                replacement = "",
+                                tissue_expression$Genes)
+
+div_genes <- subset(cluster_ohnolog_df,
+                    cluster_id_1 != cluster_id_2)$gene_1
+con_genes <- subset(cluster_ohnolog_df,
+                    cluster_id_1 != cluster_id_2)$gene_2
+
+## Load gene names:
+gene_names_df <- read.table(file = "input/gene_names.txt",
+                            header = FALSE)
+
+# Match and subset tissue expression for diverged copies:
+tissue_expression_div <- tissue_expression[match(div_genes,
+                                                 tissue_expression$Genes), ]
+
+# Match and subset tissue expression for conserved copies:
+tissue_expression_con <- tissue_expression[match(con_genes,
+                                                 tissue_expression$Genes), ]
+```
+
+7. Generate heatmaps for each subset of genes:
+
+```{r, message = FALSE}
+# Add cluster information:
+tissue_expression_con$id <- cluster_list_df[match(tissue_expression_con$Genes,
+                                               cluster_list_df$cluster), ]$id
+
+tissue_expression_div$id <- cluster_list_df[match(tissue_expression_div$Genes,
+                                               cluster_list_df$cluster), ]$id
+
+## Combine:
+combined_df <- cbind(tissue_expression_con,
+                     tissue_expression_div)
+
+combined_df_ordered <- combined_df[
+        order(combined_df[, 10],
+              combined_df[, 20]),
+]
+
+tissue_expression_con <- combined_df_ordered[, 1:10]
+tissue_expression_div <- combined_df_ordered[, 11:20]
+
+tissue_expression_con$Genes <- paste(tissue_expression_con$Genes,
+                                     " - ",
+                                     gene_names_df$V2,
+                                     sep = "")
+
+tissue_expression_div$Genes <- paste(tissue_expression_div$Genes,
+                                     " - ",
+                                     gene_names_df$V2,
+                                     sep = "")
+
+generate_heatmap <- function(dataframe,
+                             side) {
+#dd <- hclust(dist(as.matrix(dataframe[, 2:9])))
+## Reorder:
+#normalised_counts_ordered <- as.data.frame(dataframe[rev(dd$order), ])
+        ## Update gene name:
+        dataframe$Genes <- paste(dataframe$Genes,
+                                " (",
+                                dataframe$id,
+                                ")",
+                                sep = "")
+        ## update column name information:
+        colnames(dataframe) <- c("Genes",
+                                  "pyloric caeca",
+                                  "spleen",
+                                  "brain",
+                                  "gill",
+                                  "skin",
+                                  "kidney",
+                                  "liver",
+                                  "gonads",
+                                 "id")
+## Transform dataframe:
+normalised_counts_ordered_melt <- melt(dataframe)
+## Update column names:
+colnames(normalised_counts_ordered_melt) <- c("gene_name",
+                                              "id",
+                                              "sample",
+                                              "counts")
+
+## Update levels for plotting:
+normalised_counts_ordered_melt$sample <-
+        factor(normalised_counts_ordered_melt$sample,
+               levels = sort(unique(as.character(unlist(normalised_counts_ordered_melt$sample)))))
+
+normalised_counts_ordered_melt$gene_name <-
+        factor(normalised_counts_ordered_melt$gene_name,
+               levels = rev(unique(as.character(unlist(normalised_counts_ordered_melt$gene_name)))))
+
+## Plot heatmap:
+heatmap_plot <- ggplot(normalised_counts_ordered_melt,
+                       aes(sample,
+                           gene_name)) +
+        geom_tile(aes(fill = counts)) +
+        geom_vline(xintercept = c(0.5,
+                                  8.5,
+                                  14.5,
+                                  22.5)) +
+        scale_fill_gradient2(low = "black",
+                             mid = "white",
+                             high = "red") +
+        ylab("") +
+        xlab("") +
+        theme(legend.title = element_text(size = 10,
+                                          face = "bold"),
+              legend.text = element_text(size = 10,
+                                         face = "bold"),
+              axis.text.x = element_text(size = 10,
+                                         face = "bold",
+                                         colour = "black",
+                                         angle = 90,
+                                         hjust = 1),
+              axis.text.y = element_text(size = 10,
+                                         face = "bold",
+                                         colour = "black"),
+              axis.ticks.y = element_blank(),
+              axis.title = element_text(size = 10,
+                                        face = "bold"),
+              panel.grid.major = element_blank(),
+              panel.grid.minor = element_blank(),
+              panel.background = element_blank(),
+              legend.position = "bottom") +
+        scale_y_discrete(position = "right") +
+        labs(fill = "Normalised gene-level counts")
+print(heatmap_plot)
+}
+
+## Generate combined plots:
+ggarrange(generate_heatmap(tissue_expression_con),
+          generate_heatmap(tissue_expression_div),
+          align = "hv",
+          common.legend = TRUE)
+
+## Save image:
+ggsave(file = "results/combined_and_sorted_heatmap.png",
+       height = 6,
+       width = 10)
+
+ggsave(file = "results/combined_and_sorted_heatmap.pdf",
+       dpi = 600,
+       height = 6,
+       width = 10)
+```
+
+8. Run lintr:
+
+```{r, message = FALSE}
+lintr::lint(file = "examine_co_expression_clusters.Rmd")
+```
+
