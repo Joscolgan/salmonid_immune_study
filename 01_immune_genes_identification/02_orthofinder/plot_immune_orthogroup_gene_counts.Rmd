@@ -91,6 +91,12 @@ total_barplot <- ggplot(data = total_orthologues,
 total_barplot <- total_barplot + scale_fill_manual(values = c("Dark grey",
                                        "Orange",
                                        "Light blue"))
+
+## Save to file:
+ggsave(file = "results/combined_species_barchart_plot.pdf",
+       dpi = 600,
+       height = 6,
+       width = 10)
 ```
 
 4. Save everything:
