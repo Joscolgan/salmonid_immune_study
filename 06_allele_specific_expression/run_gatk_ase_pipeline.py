@@ -22,32 +22,6 @@ from helper_functions import *
 # outline commands to execute sequentially to take custom-defined input(s) and generate
 # final output (as defined in rule all).
 
-# For this specific script, rules are defined as follows:
-# rule all:
-#   - Defines the expected final output of the Snakefile.
-# rule index_genome:
-#    - A single fasta file containing genome of interest is provided as input.
-#      Input fasta file is indexed by bowtie2.
-# rule align_to_genome:
-#   - For each sample, sequences are aligned in pairs to the bowtie2-indexed genome.
-#    The rule checks if sequence headers for each input pair contain the same header information.
-#    If they differ, an error is raised.
-# rule sort_sam_to_bam:
-#    - For each sample, aligned SAM file is converted to BAM file and sorted.
-# rule calculate_coverage:
-#    - For each sample, calculates read depth per base for each genomic scaffold using an input file
-#      containing genomic co-ordinates for each genomic scaffold.
-#    - In addition, summarises percentage of read depth across entire genome.
-# rule parse_low_coverage_regions:
-#    - For each input file, parses rows where the second column contains a value less than 5.
-#    - Subsequently, parses rows containing 'genome' (which is summary information) and outputs.
-# rule reformat_plot_data:
-#    - Using a custom R script, reformat the parsed data into a format that can be plotted.
-# rule combine_plot_input:
-#    - Combine reformatted data for each sample.
-# rule plot_stack_charts:
-#    - Using the combined reformatted data for each sample, plot a stacked bar plot.
-
 ##############################################################################
 # Sample information
 ##############################################################################
@@ -354,7 +328,6 @@ rule variant_calls:
                --standard-min-confidence-threshold-for-calling 20.0 \
                -O={output} && \
                [[ -s {output[0]} ]]")
-
 
 # Align raw sequences against indexed genome
 rule filter_variant_calls:
