@@ -1,3 +1,8 @@
+--- 
+title: "Salmonid immune study"
+output: compare_immune_genes_ensembl_strutta_drerio.html
+author: Joe Colgan (joscolgan)
+---  
 
 1. Load libraries:
 
