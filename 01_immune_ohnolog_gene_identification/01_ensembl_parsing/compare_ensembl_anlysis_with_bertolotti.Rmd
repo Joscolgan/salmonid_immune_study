@@ -1,5 +1,8 @@
-
-
+--- 
+title: "Salmonid immune study"
+output: compare_ensembl_anlysis_with_bertolotti.html
+author: Joe Colgan (joscolgan)
+---
 
 1. Load libraries:
 
