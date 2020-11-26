@@ -1,4 +1,8 @@
-
+--- 
+title: "Salmonid immune study"
+output: plot_dnds_comparison.html
+author: Joe Colgan (joscolgan)
+---
 
 1. Load libraries:
 
