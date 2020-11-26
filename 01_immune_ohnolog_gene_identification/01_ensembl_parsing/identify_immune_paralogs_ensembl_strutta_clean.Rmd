@@ -1,3 +1,8 @@
+--- 
+title: "Salmonid immune study"
+output: identify_immune_paralogs_ensembl_strutta_clean.html
+author: Joe Colgan (joscolgan)
+---  
 
 1. Load libraries:
 
