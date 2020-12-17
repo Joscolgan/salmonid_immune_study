@@ -1,5 +1,4 @@
 
-
 1. Load libraries:
 
 ```{r, message = FALSE}
@@ -95,6 +94,16 @@ total_barplot <- total_barplot + scale_fill_manual(values = c("Dark grey",
 ## Save to file:
 ggsave(file = "results/combined_species_barchart_plot.pdf",
        dpi = 600,
+       height = 6,
+       width = 10)
+
+## Save to file as a .tiff file:
+ggsave(file = "results/combined_species_barchart_plot.tiff",
+       height = 6,
+       width = 10)
+
+## Save to file as a .jpeg file:
+ggsave(file = "results/combined_species_barchart_plot.jpeg",
        height = 6,
        width = 10)
 ```
