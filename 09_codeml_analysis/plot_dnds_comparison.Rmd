@@ -178,25 +178,29 @@ domain_plot <- ggplot(data = ohnolog_data,
 5. Generate a combined plot:
 
 ```{r, message = FALSE}
-ggarrange(evol_dist_plot,
-          mean_expression_plot,
-          domain_plot,
+ggarrange(domain_plot,
           dnsd_plot,
           labels = c("A",
-                     "B",
-                     "C",
-                     "D"),
+                     "B"),
           align = "hv")
 
 ## Save to file:
-ggsave(file = "results/combined_ohnolog_analysis.png",
-       height = 8,
-       width = 8)
+ggsave(file = "combined_ohnolog_analysis_reduced.png",
+       height = 6,
+       width = 10)
 
-ggsave(file = "results/combined_ohnolog_analysis.pdf",
+ggsave(file = "combined_ohnolog_analysis_reduced.pdf",
        dpi = 600,
-       height = 8,
-       width = 8)
+       height = 6,
+       width = 10)
+
+ggsave(file = "combined_ohnolog_analysis_reduced.jpeg",
+       height = 6,
+       width = 10)
+
+ggsave(file = "combined_ohnolog_analysis_reduced.tiff",
+       height = 6,
+       width = 10)
 ```
 
 5. Load differential expression results:
