@@ -1,0 +1,232 @@
+---
+title: "Salmo immune study"
+output: plot_tissue_expression.html
+author: Joe Colgan (joscolgan)
+---
+
+1. Load libraries:
+
+```{r, message = FALSE}
+require(ggplot2)
+require(matrixStats)
+require(DESeq2)
+require(reshape2)
+require(hash)
+require(tidyr)
+require(purrr)
+require(UpSetR)
+```
+
+2. Read in data:
+
+```{r, message = FALSE}
+strutta_data <- read.table(file = "input/strutta_raw_gene_level_counts.txt",
+                           header = TRUE)
+
+str_samples <- read.table(file = "data/str_samples_list.txt",
+                          header = FALSE)
+colnames(strutta_data) <- str_samples$V2
+```
+
+3. Read in lists of immune genes:
+
+```{r, message = FALSE}
+## Read in a list of immune genes:
+trout_immune_list <- scan(file = "data/putative_strutta_immune_genes.txt",
+                          as.character())
+trout_immune_list <- paste(trout_immune_list,
+                           ".1",
+                           sep = "")
+```
+
+4. We want to generate a barplot for each species:
+
+```{r, message = FALSE}
+## Check if each row contains an immune gene or not:
+strutta_data$immune_status <- row.names(strutta_data) %in% trout_immune_list
+
+strutta_data$immune_status <- gsub(pattern = "FALSE",
+                                    replacement = "non immune",
+                                    x = strutta_data$immune_status)
+
+strutta_data$immune_status <- gsub(pattern = "TRUE",
+                                    replacement = "immune",
+                                    x = strutta_data$immune_status)
+
+## Transform dataframe for plotting:
+strutta_data$locus <- row.names(strutta_data)
+
+strutta_immune_df <- subset(strutta_data,
+                            strutta_data$immune_status == "immune")
+
+immune_counts  <- hash()
+strutta_all_tmp <- strutta_data[, 1:8]
+strutta_immune_tmp <- strutta_immune_df[, 1:8]
+
+list_comparative <- hash()
+list_comparative <- list(
+               Pyloric_caeca = row.names(subset(x = strutta_immune_tmp,
+                                        strutta_immune_tmp[1] > 5)),
+               Spleen = row.names(subset(x = strutta_immune_tmp,
+                                        strutta_immune_tmp[2] > 5)),
+               Brain = row.names(subset(x = strutta_immune_tmp,
+                                        strutta_immune_tmp[3] > 5)),
+               Gill = row.names(subset(x = strutta_immune_tmp,
+                                        strutta_immune_tmp[4] > 5)),
+               Skin = row.names(subset(x = strutta_immune_tmp,
+                                        strutta_immune_tmp[5] > 5)),
+               Kidney = row.names(subset(x = strutta_immune_tmp,
+                                        strutta_immune_tmp[6] > 5)),
+               Liver = row.names(subset(x = strutta_immune_tmp,
+                                        strutta_immune_tmp[7] > 5)),
+               Ovary = row.names(subset(x = strutta_immune_tmp,
+                                        strutta_immune_tmp[8] > 5)))
+
+names(list_comparative)[1] <- "Pyloric caeca"
+
+length(unique(sort(c(list_comparative$Pyloric_caecum,
+                   list_comparative$Spleen,
+                   list_comparative$Brain,
+                   list_comparative$Gill,
+                   list_comparative$Skin,
+                   list_comparative$Kidney,
+                   list_comparative$Liver,
+                   list_comparative$Ovary))))
+
+table(table(c(list_comparative$Pyloric_caecum,
+                   list_comparative$Spleen,
+                   list_comparative$Brain,
+                   list_comparative$Gill,
+                   list_comparative$Skin,
+                   list_comparative$Kidney,
+                   list_comparative$Liver,
+                   list_comparative$Ovary)))
+
+## Print:
+pdf(file = "results/upset_plot_trout.pdf") # or other device
+UpSetR::upset(fromList(list_comparative), 
+                  nsets = 10,
+                  main.bar.color = "blue",
+              text.scale = 1.3,
+                  nintersects = 30, 
+                  order.by = "freq",
+                  mainbar.y.label = "Number of immune genes", 
+                  sets.x.label = "Immune genes expressed")
+dev.off()
+
+tiff(file = "results/upset_plot_trout.tiff") # or other device
+UpSetR::upset(fromList(list_comparative), 
+                  nsets = 10,
+                  main.bar.color = "blue",
+              text.scale = 1.3,
+                  nintersects = 30, 
+                  order.by = "freq",
+                  mainbar.y.label = "Number of immune genes", 
+                  sets.x.label = "Immune genes expressed")
+dev.off()
+
+
+jpeg(file = "results/upset_plot_trout.jpeg") # or other device
+UpSetR::upset(fromList(list_comparative), 
+                  nsets = 10,
+                  main.bar.color = "blue",
+              text.scale = 1.3,
+                  nintersects = 30, 
+                  order.by = "freq",
+                  mainbar.y.label = "Number of immune genes", 
+                  sets.x.label = "Immune genes expressed")
+dev.off()
+```
+
+5. Is there elevated expression of immune genes in comparison to other genes per tissue?
+
+```{r, message = FALSE}
+strutta_non_immune_df <- subset(strutta_data,
+                                immune_status == "non immune")
+
+## Pyloric caecum:
+pyloric_caecum_df <- subset(strutta_data,
+                            Pyloric_caecum > 0)
+pyloric_caecum_immune_df <- subset(pyloric_caecum_df,
+                                   immune_status == "immune")
+pyloric_caecum_non_immune_df <- subset(pyloric_caecum_df,
+                                       immune_status == "non immune")
+wilcox.test(pyloric_caecum_immune_df$Pyloric_caecum,
+            pyloric_caecum_non_immune_df$Pyloric_caecum)
+
+## Spleen:
+spleen_df <- subset(strutta_data,
+                    Spleen > 0)
+spleen_immune_df <- subset(spleen_df,
+                           immune_status == "immune")
+spleen_non_immune_df <- subset(spleen_df,
+                               immune_status == "non immune")
+wilcox.test(spleen_immune_df$Spleen,
+            spleen_non_immune_df$Spleen)
+
+## Brain:
+brain_df <- subset(strutta_data,
+                    Brain > 0)
+brain_immune_df <- subset(brain_df,
+                           immune_status == "immune")
+brain_non_immune_df <- subset(brain_df,
+                               immune_status == "non immune")
+wilcox.test(brain_immune_df$Brain,
+            brain_non_immune_df$Brain)
+
+## Gill:
+gill_df <- subset(strutta_data,
+                  Gill > 0)
+gill_immune_df <- subset(gill_df,
+                          immune_status == "immune")
+gill_non_immune_df <- subset(gill_df,
+                               immune_status == "non immune")
+wilcox.test(gill_immune_df$Gill,
+            gill_non_immune_df$Gill)
+
+## Skin:
+skin_df <- subset(strutta_data,
+                  Skin > 0)
+skin_immune_df <- subset(skin_df,
+                          immune_status == "immune")
+skin_non_immune_df <- subset(skin_df,
+                               immune_status == "non immune")
+wilcox.test(skin_immune_df$Skin,
+            skin_non_immune_df$Skin)
+
+## Kidney:
+kidney_df <- subset(strutta_data,
+                    Kidney > 0)
+kidney_immune_df <- subset(kidney_df,
+                          immune_status == "immune")
+kidney_non_immune_df <- subset(kidney_df,
+                               immune_status == "non immune")
+wilcox.test(kidney_immune_df$Kidney,
+            kidney_non_immune_df$Kidney)
+
+## liver:
+liver_df <- subset(strutta_data,
+                    Liver > 0)
+liver_immune_df <- subset(liver_df,
+                          immune_status == "immune")
+liver_non_immune_df <- subset(liver_df,
+                               immune_status == "non immune")
+wilcox.test(liver_immune_df$Liver,
+            liver_non_immune_df$Liver)
+
+## Ovary:
+ovary_df <- subset(strutta_data,
+                    Ovary > 0)
+ovary_immune_df <- subset(ovary_df,
+                          immune_status == "immune")
+ovary_non_immune_df <- subset(ovary_df,
+                              immune_status == "non immune")
+wilcox.test(ovary_immune_df$Ovary,
+            ovary_non_immune_df$Ovary)
+```
+
+6. Run lintr:
+
+```{r, message = FALSE}
+lintr::lint(file = "plot_tissue_expression.Rmd")
+```
