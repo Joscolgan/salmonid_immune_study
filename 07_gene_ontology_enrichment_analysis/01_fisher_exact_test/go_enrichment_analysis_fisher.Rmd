@@ -1,150 +1,128 @@
 --- 
 title: "Salmonid immune study"
-output: go_enrichment_analysis_fisher.html
+output: plot_go_term_barchart.html
 author: Joe Colgan (joscolgan)
 ---
 
-# Introduction 
-This script is for gene ontology (GO) enrichment analysis of differentiallly expressed genes to explore the biological processes and molecular functions associated with DE genes, using the R package 'TopGO' (https://www.bioconductor.org/packages/3.7/bioc/vignettes/topGO/inst/doc/topGO.pdf).
-Twp input files are required for the running of the test:  
-1) A genelist file:  
-The genelist file is a tab-delimited file containing two columns:  
-Column 1: Locus (contains gene or transcript name of interest).  
-Column 2: Rank value of interest (e.g. p-values or log fold changes).  
-Rank values were generated using the R package, DESeq2, and implemented using code in ```gene_level_3_treatments.Rmd```.  
-
-2) A GO database file:  
-The GO database file is a tab-delimited file containing two columns:  
-Column 1: Locus (contains gene or transcript name of interest).  
-Column 2: Comma separated GO terms (e.g. GO:0000001, GO:0000002, etc.).  
-
-This script will prepare data for GO analysis and create a 'TopGO object' from which enrichment tests can be performed to explore GO terms significantly enriched within the dataset. 
-This script outputs a results table of significantly enriched GO terms.
-
-*It should be run once per treatment, and will produce 3 output files each time it is run*
+## Introduction:  
+This script is for visualisation of the output of gene ontology (GO) analyses using the R package TopGo.
+This script creates a barchart of the number of significant genes annotated to a particular GO term, with an associated p-value. This script takes an input of .csv files containing an output table of GO analyses.
 
 ```{r, message = FALSE}
 # Load libraries; install from scratch if needed
-libraries <- c("topGO",
-               "lintr",
-               "lattice")
+libraries <- c("ggplot2",
+               "lattice",
+               "ggpubr")
 for (lib in libraries) {
     if (require(package = lib, character.only = TRUE)) {
         print("Successful")
     } else {
         print("Installing")
         source("https://bioconductor.org/biocLite.R")
-        avebiocLite(pkgs = lib)
         library(lib, character.only = TRUE)
     }
 }
+## Create output directory:
+dir.create("results")
 ```
 
-## Step One: Input files, define output and objects for running topGO: 
-Load in genelist and database files.  
-
-```{r}
-## Step One:
-## Define input:
-input <- "data/strutta_drerio_go_terms_filtered_converted.txt"
-
-## GO annotations
-gene_to_go_mapping_file <- input
-
-## genes overlapping with regions of significantly low nucleotide diversity:
-gene_input <- "salmo_trutta_single_copy_orthologues_immune.txt"
-gene_list <- scan(file = paste("input/",
-                               gene_input,
-                               sep = ""),
-                  as.character())
-
-## Define node size:
-node_size <- 10
-
-## Assign name to database:
-database <- "strutta_drerio_immmune"
-
-## Name output directory:
-output_directory <- paste("results/",
-                          database,
-                          "/output_",
-                          node_size,
-                          "_fisher_all",
-                          sep = "")
-if (file.exists(output_directory)) {
-  stop("The output directory:", output_directory, ", already exists",
-       "Let's avoid overwriting")
-} else {
-  dir.create(output_directory,
-             recursive = TRUE)
-}
-```
-
-Read in input file:
+1. Load input files
 
 ```{r, message = FALSE}
-## Read in GO annotations:
-gene_to_go_mapping <- readMappings(file = gene_to_go_mapping_file)
-gene_universe <- names(gene_to_go_mapping)
-genes_of_interest <- as.character(gene_list)
-genelist <- factor(as.integer(gene_universe %in% genes_of_interest))
-names(genelist) <- gene_universe
+## Read in input:
+results <- "./results/strutta_drerio_immmune/output_20_fisher_zf_strutta_one_to_many/"
+## Read in biological process terms:
+sig_bp_one2many <- read.table(file = paste(results,
+                                    "BP_sig.txt",
+                                    sep = ""),
+                                    header = TRUE,
+                           col.names =  c("go_term",
+                                        "go_description",
+                                        "go_number",
+                                        "adjusted_p"))
+                       
+## Subset significant values:
+sig_bp_one2many <- subset(sig_bp_one2many,
+                   adjusted_p < 0.05)
+sig_bp_one2many$category <- "1:many"
+
+sig_bp_one2many$amended_terms <- paste(sig_bp_one2many$go_description,
+                                   "_(",
+                                   sig_bp_one2many$go_number,
+                                   ")",
+                                   sep = "")
+sig_bp_one2many$amended_terms <- gsub(pattern = "_",
+                                  replacement = " ",
+                                  sig_bp_one2many$amended_terms)
+## Subset genes with adjust p value less than 0.01
+sig_bp_one2many <- head(subset(x = sig_bp_one2many,
+                            adjusted_p < 0.01), n = 50)
+## Log transform p value:
+sig_bp_one2many$log_10 <- -log10(x = sig_bp_one2many$adjusted_p)
 ```
 
-## Steps Two and Three: Create topGO Object & run tests for GO term enrichment
-
-We create a topGO object for each GO term
-
-We perform two statistical tests:
-1. A ks test using the topGO 'weight01' algorithm
-2. A Fisher's exact test using the topGO 'weight01' algoritm
-
-We combine the output of each test. 
-We filter out enriched terms.
-
-We do this for each of the three GO categories (ie. Biological process, Molcular Function, Cellular Component):
-
-```{r}
-## Filter through GO terms:
-for (go_category in c("BP", "MF", "CC")) {
-  # STEP TWO
-  ## Build the GOdata object in topGO
-  my_go_data <- new("topGOdata",
-                    description = paste("GOtest", go_category, sep = "_"),
-                    ontology    = go_category,
-                    allGenes    = genelist,
-                    gene2GO     = gene_to_go_mapping,
-                    annot       = annFUN.gene2GO,
-                    nodeSize    = node_size) # Modify to reduce/increase stringency.
-  # STEP THREE
-  ## Calculate fisher exact test using 'weight01' algorithm:
-  result_weight_fisher <- runTest(object    = my_go_data,
-                                  algorithm = "weight01",
-                                  statistic = "fisher")
-  ## Combine results from statistical tests:
-  result_weight_output <- GenTable(object       = my_go_data,
-                                   weight_fisher = result_weight_fisher,
-                                   orderBy       = "weight_fisher",
-                                   topNodes      = length(score(result_weight_fisher)))
-  ## Correct ks test for multiple testing:
-  result_weight_output$weight_fisher <- as.numeric(result_weight_output$weight_fisher)
-  result_weight_output$weight_fisher_adjusted <- p.adjust(p = result_weight_output$weight_fisher,
-                                                          method = c("BH"))
-  ## Write to output:
-  write.table(x         = result_weight_output,
-              file      = file.path(output_directory,
-                                    paste(go_category,
-                                          "sig.tsv",
-                                          sep = "_")),
-              row.names = FALSE,
-              sep       = "\t",
-              quote = FALSE)
-}
-```
-
-Run lintr:
+2. Generate plot:
 
 ```{r, message = FALSE}
-## Check style:
-lintr::lint(file = "go_enrichment_analysis_fisher.Rmd")
+## Function for plotting barchart:
+plot <- ggbarplot(sig_bp_one2many,
+                          x = "amended_terms",
+                          y = "log_10",
+                          position = position_dodge(0.1),
+                          fill = "category",
+                          color = NULL,
+                          palette = "jco",
+                          sort.val = "asc",
+                          sort.by.groups = FALSE,
+                          ylab = "-log10(p)",
+                          xlab = "Enriched Gene Ontology terms",
+                          legend.title = "Gene Ontology",
+                          lab.col = "black",
+                          lab.size = 4,
+                          lab.vjust = 0.5,
+                          lab.hjust = 1,
+                          legend = "top",
+                          rotate = TRUE,
+                          ggtheme = theme_minimal())
+
+## Make font bigger and bold:
+plot <- plot +
+                scale_y_continuous(expand = c(0, 0)) +
+                theme(axis.text = element_text(size = 10),
+                      axis.title.x = element_text(size = 12,
+                                                  face = "bold"),
+                      axis.title.y = element_text(size = 12,
+                                                  face = "bold"),
+                      axis.text.y = element_text(size = 10,
+                                                 face = "bold"),
+                      axis.text.x = element_text(size = 10),
+                      legend.position = "none") +
+                expand_limits(y = 10) +
+                geom_hline(yintercept = 1.301,
+                           linetype = "dashed",
+                           colour = "black")
+## Update colours for plotting
+plot <- plot +
+        scale_fill_manual(values = c("light blue"))
+
+## Save picture:
+ggsave(file = "results/1_more_than_2_go_terms_barchart.pdf",
+       dpi = 600,
+       height = 8,
+       width = 10)
+
+ggsave(file = "results/1_more_than_2_go_terms_barchart.tiff",
+       height = 8,
+       width = 10)
+
+ggsave(file = "results/1_more_than_2_go_terms_barchart.jpeg",
+       height = 8,
+       width = 10)
+
+```
+
+3. Run lintr:
+
+```{r, message =  FALSE}
+lintr::lint(file = "plot_go_term_barchart.Rmd")
 ```
